@@ -1,0 +1,244 @@
+---
+export interface RelatedTopic {
+  slug: string;
+  title: string;
+  note?: string;
+  position: "before" | "after" | "parallel";
+}
+
+interface Props {
+  currentTitle: string;
+  related: RelatedTopic[];
+}
+
+const { currentTitle, related } = Astro.props;
+const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+const before = related.filter((r) => r.position === "before");
+const after = related.filter((r) => r.position === "after");
+const parallel = related.filter((r) => r.position === "parallel");
+
+function sanitize(s: string): string {
+  return s.replace(/[\n\r"]/g, " ").replace(/\s+/g, " ").trim();
+}
+
+const lines: string[] = ["flowchart LR"];
+
+const beforeWithId = before.map((r, i) => ({ ...r, id: `b${i}` }));
+const afterWithId = after.map((r, i) => ({ ...r, id: `a${i}` }));
+const parallelWithId = parallel.map((r, i) => ({ ...r, id: `p${i}` }));
+
+beforeWithId.forEach((r) => {
+  lines.push(`  ${r.id}["${sanitize(r.title)}"]:::before`);
+});
+lines.push(`  current["${sanitize(currentTitle)}"]:::current`);
+afterWithId.forEach((r) => {
+  lines.push(`  ${r.id}["${sanitize(r.title)}"]:::after`);
+});
+parallelWithId.forEach((r) => {
+  lines.push(`  ${r.id}["${sanitize(r.title)}"]:::parallel`);
+});
+
+beforeWithId.forEach((r) => {
+  if (r.note) {
+    lines.push(`  ${r.id} -- "${sanitize(r.note)}" --> current`);
+  } else {
+    lines.push(`  ${r.id} --> current`);
+  }
+});
+afterWithId.forEach((r) => {
+  if (r.note) {
+    lines.push(`  current -- "${sanitize(r.note)}" --> ${r.id}`);
+  } else {
+    lines.push(`  current --> ${r.id}`);
+  }
+});
+parallelWithId.forEach((r) => {
+  if (r.note) {
+    lines.push(`  current -. "${sanitize(r.note)}" .-> ${r.id}`);
+  } else {
+    lines.push(`  current -.- ${r.id}`);
+  }
+});
+
+[...beforeWithId, ...afterWithId, ...parallelWithId].forEach((r) => {
+  lines.push(
+    `  click ${r.id} href "${baseUrl}/topics/${r.slug}/" "Open ${sanitize(r.title)}"`,
+  );
+});
+
+lines.push(
+  `  classDef current fill:#5b8def,stroke:#1e3a72,color:#0f1115,stroke-width:2px,font-weight:bold`,
+);
+lines.push(
+  `  classDef before fill:#1c212c,stroke:#f1a983,color:#e6e8ec`,
+);
+lines.push(
+  `  classDef after fill:#1c212c,stroke:#85c785,color:#e6e8ec`,
+);
+lines.push(
+  `  classDef parallel fill:#1c212c,stroke:#8a93a6,color:#e6e8ec`,
+);
+
+const mermaidDef = lines.join("\n");
+const hasConnections = related.length > 0;
+---
+
+{
+  hasConnections ? (
+    <div class="connections-block">
+      <div class="timeline-axis" aria-hidden="true">
+        <span class="t-label t-before">← Comes before</span>
+        <span class="t-line" />
+        <span class="t-label t-current">This topic</span>
+        <span class="t-line" />
+        <span class="t-label t-after">Comes after →</span>
+      </div>
+      <div class="mermaid-wrapper">
+        <pre class="mermaid" id="connections-mermaid">{mermaidDef}</pre>
+      </div>
+    </div>
+  ) : (
+    <p class="no-connections">No related topics recorded yet.</p>
+  )
+}
+
+<script>
+  import mermaid from "mermaid";
+
+  const darkVars = {
+    darkMode: true,
+    background: "transparent",
+    primaryColor: "#1c212c",
+    primaryTextColor: "#e6e8ec",
+    primaryBorderColor: "#2a3140",
+    lineColor: "#8a93a6",
+    textColor: "#e6e8ec",
+    mainBkg: "#1c212c",
+    edgeLabelBackground: "#0f1115",
+    labelTextColor: "#e6e8ec",
+  };
+  const lightVars = {
+    darkMode: false,
+    background: "transparent",
+    primaryColor: "#f1f3f6",
+    primaryTextColor: "#1a1d22",
+    primaryBorderColor: "#c8ccd1",
+    lineColor: "#5f6368",
+    textColor: "#1a1d22",
+    mainBkg: "#f1f3f6",
+    edgeLabelBackground: "#fafbfc",
+    labelTextColor: "#1a1d22",
+  };
+
+  function initMermaid() {
+    const theme =
+      document.documentElement.getAttribute("data-theme") === "light"
+        ? "light"
+        : "dark";
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: "base",
+      securityLevel: "loose",
+      themeVariables: theme === "light" ? lightVars : darkVars,
+      flowchart: {
+        curve: "basis",
+        htmlLabels: true,
+        padding: 16,
+        nodeSpacing: 40,
+        rankSpacing: 60,
+      },
+    });
+  }
+
+  const el = document.getElementById("connections-mermaid");
+  const source = el ? el.textContent || "" : "";
+
+  function renderMermaid() {
+    if (!el) return;
+    initMermaid();
+    el.removeAttribute("data-processed");
+    el.innerHTML = source;
+    mermaid.run({ nodes: [el] });
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", renderMermaid);
+  } else {
+    renderMermaid();
+  }
+
+  // Re-render whenever the site theme toggles
+  const observer = new MutationObserver((mutations) => {
+    for (const m of mutations) {
+      if (m.attributeName === "data-theme") {
+        renderMermaid();
+        break;
+      }
+    }
+  });
+  observer.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ["data-theme"],
+  });
+</script>
+
+<style>
+  .connections-block {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .timeline-axis {
+    display: grid;
+    grid-template-columns: auto 1fr auto 1fr auto;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0 0.25rem 0.25rem;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    letter-spacing: 0.02em;
+  }
+
+  .t-label {
+    white-space: nowrap;
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+  }
+
+  .t-line {
+    height: 1px;
+    background: var(--border);
+  }
+
+  .t-current {
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  .mermaid-wrapper {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem;
+    overflow-x: auto;
+  }
+
+  .mermaid {
+    text-align: center;
+    background: transparent !important;
+    margin: 0;
+    font-family: inherit;
+  }
+
+  .mermaid svg {
+    max-width: 100%;
+    height: auto;
+  }
+
+  .no-connections {
+    color: var(--text-muted);
+    font-style: italic;
+  }
+</style>

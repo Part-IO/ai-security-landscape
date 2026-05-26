@@ -1,0 +1,436 @@
+---
+import { getCollection, getEntry } from "astro:content";
+import Base from "../../layouts/Base.astro";
+import KeyFactorBars from "../../components/KeyFactorBars.astro";
+import ConnectionsDiagram, {
+  type RelatedTopic,
+} from "../../components/ConnectionsDiagram.astro";
+
+export async function getStaticPaths() {
+  const topics = await getCollection("topics");
+  return topics.map((topic) => ({
+    params: { slug: topic.slug },
+    props: { topic },
+  }));
+}
+
+const { topic } = Astro.props;
+const { Content } = await topic.render();
+const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+// Own outgoing connections.
+const ownRelated: RelatedTopic[] = await Promise.all(
+  topic.data.connections.map(async (c) => {
+    const target = await getEntry(c.to);
+    return {
+      slug: target.slug,
+      title: target.data.title,
+      note: c.note,
+      position: c.relation as "before" | "after" | "parallel",
+    };
+  }),
+);
+
+// Incoming — flip the relation so it reads from the current topic's view.
+const flip = (r: "before" | "after" | "parallel") =>
+  r === "before" ? "after" : r === "after" ? "before" : "parallel";
+
+const all = await getCollection("topics");
+const incomingRelated: RelatedTopic[] = all
+  .filter((t) => t.slug !== topic.slug)
+  .flatMap((t) =>
+    t.data.connections
+      .filter((c) => c.to.slug === topic.slug)
+      .map((c) => ({
+        slug: t.slug,
+        title: t.data.title,
+        note: c.note,
+        position: flip(c.relation as "before" | "after" | "parallel") as
+          | "before"
+          | "after"
+          | "parallel",
+      })),
+  );
+
+// Merge + dedupe by slug. Own declaration wins.
+const seen = new Set<string>();
+const related: RelatedTopic[] = [];
+for (const r of [...ownRelated, ...incomingRelated]) {
+  if (seen.has(r.slug)) continue;
+  seen.add(r.slug);
+  related.push(r);
+}
+
+const beforeTopics = related.filter((r) => r.position === "before");
+const afterTopics = related.filter((r) => r.position === "after");
+const parallelTopics = related.filter((r) => r.position === "parallel");
+
+const repoEditUrl = `https://github.com/Part-IO/ai-security-landscape/edit/main/src/content/topics/${topic.slug}.md`;
+---
+
+<Base title={topic.data.title}>
+  <p class="back-link">
+    <a href={baseUrl || "/"}>← Back to landscape</a>
+  </p>
+
+  <div class="topic-layout">
+    <aside class="topic-sidebar">
+      <h2 class="sidebar-heading">Key Factors</h2>
+      <KeyFactorBars
+        factors={topic.data.factors}
+        notes={topic.data.factor_notes}
+      />
+    </aside>
+
+    <article class="topic-main">
+      <header class="topic-hero">
+        <h1>{topic.data.title}</h1>
+        <p class="topic-hero-meta">
+          <span class={`badge badge-${topic.data.maturity}`}>{topic.data.maturity}</span>
+          <span class="meta-sep">·</span>
+          <span>{topic.data.ml_types.join(" · ")}</span>
+          <span class="meta-sep">·</span>
+          <span>{topic.data.departments.join(" · ")}</span>
+        </p>
+      </header>
+
+      <div class="prose">
+        <Content />
+      </div>
+
+      <section class="section">
+        <h2>Related topics</h2>
+        <ConnectionsDiagram currentTitle={topic.data.title} related={related} />
+
+        {
+          beforeTopics.length > 0 && (
+            <div class="related-block before-block">
+              <h3>Where to start?</h3>
+              <p class="block-hint">
+                Topics typically tackled <em>before</em> this one. Their output
+                becomes input you can build on.
+              </p>
+              <ul class="related-list">
+                {beforeTopics.map((c) => (
+                  <li>
+                    <a
+                      href={`${baseUrl}/topics/${c.slug}/`}
+                      class="related-title"
+                    >
+                      {c.title}
+                    </a>
+                    {c.note && <span class="related-note"> — {c.note}</span>}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )
+        }
+
+        {
+          afterTopics.length > 0 && (
+            <div class="related-block after-block">
+              <h3>After finishing</h3>
+              <p class="block-hint">
+                Topics that build on the output of this one — pick the next
+                step in the pipeline.
+              </p>
+              <ul class="related-list">
+                {afterTopics.map((c) => (
+                  <li>
+                    <a
+                      href={`${baseUrl}/topics/${c.slug}/`}
+                      class="related-title"
+                    >
+                      {c.title}
+                    </a>
+                    {c.note && <span class="related-note"> — {c.note}</span>}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )
+        }
+
+        {
+          parallelTopics.length > 0 && (
+            <div class="related-block parallel-block">
+              <h3>In parallel</h3>
+              <ul class="related-list">
+                {parallelTopics.map((c) => (
+                  <li>
+                    <a
+                      href={`${baseUrl}/topics/${c.slug}/`}
+                      class="related-title"
+                    >
+                      {c.title}
+                    </a>
+                    {c.note && <span class="related-note"> — {c.note}</span>}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )
+        }
+      </section>
+
+      {
+        topic.data.references.length > 0 && (
+          <section class="section">
+            <h2>Examples & References</h2>
+            <ul class="references">
+              {topic.data.references.map((ref) => {
+                const u = new URL(ref.url);
+                const host = u.host.replace(/^www\./, "");
+                const path = u.pathname.replace(/^\//, "").replace(/\/$/, "");
+                const label = path
+                  ? `${host} · ${path}`
+                  : host;
+                return (
+                  <li class="reference-item">
+                    <a
+                      href={ref.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="reference-link"
+                    >
+                      {label}
+                      <span class="reference-host">{u.host}</span>
+                    </a>
+                    {ref.description && (
+                      <p class="reference-desc">{ref.description}</p>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        )
+      }
+
+      <p class="edit-link">
+        Spotted an error or want to extend this topic?{" "}
+        <a href={repoEditUrl} target="_blank" rel="noopener noreferrer">
+          Edit on GitHub
+        </a>
+        .
+      </p>
+    </article>
+  </div>
+</Base>
+
+<style>
+  .back-link {
+    margin: 0 0 1rem;
+    font-size: 0.9rem;
+  }
+
+  .topic-layout {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    gap: 2.5rem;
+    align-items: start;
+  }
+
+  @media (max-width: 860px) {
+    .topic-layout {
+      grid-template-columns: 1fr;
+      gap: 1.5rem;
+    }
+  }
+
+  .topic-sidebar {
+    position: sticky;
+    top: 1rem;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.1rem 1.1rem 1.25rem;
+  }
+
+  @media (max-width: 860px) {
+    .topic-sidebar {
+      position: static;
+      order: 2;
+    }
+  }
+
+  .sidebar-heading {
+    margin: 0 0 0.1rem;
+    font-size: 1.05rem;
+  }
+
+  .topic-main {
+    min-width: 0;
+  }
+
+  .topic-hero {
+    padding-bottom: 1.25rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 1.5rem;
+  }
+
+  .topic-hero h1 {
+    margin: 0 0 0.5rem;
+    font-size: 2rem;
+    line-height: 1.2;
+  }
+
+  .topic-hero-meta {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .meta-sep {
+    color: var(--border);
+  }
+
+  .topic-main .prose {
+    font-size: 1.02rem;
+    line-height: 1.7;
+  }
+
+  .topic-main .prose > :first-child {
+    margin-top: 0;
+  }
+
+  .topic-main .prose h2 {
+    margin-top: 2rem;
+    font-size: 1.3rem;
+    padding-bottom: 0.3rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .topic-main .prose h3 {
+    margin-top: 1.5rem;
+  }
+
+  .topic-main .prose ul,
+  .topic-main .prose ol {
+    padding-left: 1.5rem;
+  }
+
+  .section {
+    margin-top: 2.5rem;
+  }
+
+  .section > h2 {
+    margin-bottom: 0.6rem;
+    font-size: 1.3rem;
+    padding-bottom: 0.3rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .section-hint {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    margin-top: 0.4rem;
+    margin-bottom: 1rem;
+  }
+
+  .related-block {
+    margin-top: 1.5rem;
+    padding: 1rem 1.1rem 1.1rem;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    border-left-width: 3px;
+  }
+
+  .before-block {
+    border-left-color: #f1a983;
+  }
+
+  .after-block {
+    border-left-color: #85c785;
+  }
+
+  .parallel-block {
+    border-left-color: #8a93a6;
+  }
+
+  .related-block h3 {
+    margin: 0 0 0.2rem;
+    font-size: 1.02rem;
+  }
+
+  .block-hint {
+    margin: 0 0 0.8rem;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+  }
+
+  .related-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    gap: 0.5rem;
+  }
+
+  .related-list li {
+    padding: 0.55rem 0.75rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    line-height: 1.5;
+  }
+
+  .related-title {
+    font-weight: 600;
+  }
+
+  .related-note {
+    color: var(--text-muted);
+    font-size: 0.92rem;
+  }
+
+  .references {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    gap: 0.75rem;
+  }
+
+  .reference-item {
+    padding: 0.8rem 1rem;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+  }
+
+  .reference-link {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    font-weight: 600;
+    word-break: break-word;
+  }
+
+  .reference-host {
+    font-weight: 400;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+  }
+
+  .reference-desc {
+    margin: 0.45rem 0 0;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    line-height: 1.55;
+  }
+
+  .edit-link {
+    margin-top: 3rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: 0.85rem;
+  }
+</style>

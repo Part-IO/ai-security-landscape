@@ -1,0 +1,86 @@
+---
+import "../styles/global.css";
+
+interface Props {
+  title?: string;
+  description?: string;
+}
+
+const {
+  title = "AI Security Landscape",
+  description = "Open landscape of AI use cases in cybersecurity, mapped by ML approach and security department.",
+} = Astro.props;
+
+const fullTitle =
+  title === "AI Security Landscape" ? title : `${title} — AI Security Landscape`;
+const baseHref = import.meta.env.BASE_URL;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{fullTitle}</title>
+    <meta name="description" content={description} />
+    <meta name="generator" content={Astro.generator} />
+    <script is:inline>
+      (function () {
+        try {
+          const saved = localStorage.getItem("theme");
+          const sys = window.matchMedia("(prefers-color-scheme: light)").matches
+            ? "light"
+            : "dark";
+          const theme = saved || sys;
+          document.documentElement.setAttribute("data-theme", theme);
+        } catch (e) {
+          /* localStorage might be disabled */
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="site-header-inner">
+        <div class="site-title">
+          <a href={baseHref}>AI Security Landscape</a>
+        </div>
+        <div class="site-header-right">
+          <div class="site-tagline">AI use cases in cybersecurity, mapped.</div>
+          <button
+            type="button"
+            class="theme-toggle"
+            id="theme-toggle"
+            aria-label="Toggle light / dark theme"
+            title="Toggle light / dark theme"
+          >
+            <span class="icon-dark">☀</span>
+            <span class="icon-light">☾</span>
+          </button>
+        </div>
+      </div>
+    </header>
+    <main class="container">
+      <slot />
+    </main>
+    <footer class="site-footer">
+      Open source · MIT · Contributions welcome
+    </footer>
+
+    <script>
+      const btn = document.getElementById("theme-toggle");
+      if (btn) {
+        btn.addEventListener("click", () => {
+          const current = document.documentElement.getAttribute("data-theme");
+          const next = current === "light" ? "dark" : "light";
+          document.documentElement.setAttribute("data-theme", next);
+          try {
+            localStorage.setItem("theme", next);
+          } catch (e) {
+            /* localStorage disabled */
+          }
+        });
+      }
+    </script>
+  </body>
+</html>

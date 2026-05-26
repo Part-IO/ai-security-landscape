@@ -1,0 +1,149 @@
+---
+import Base from "../../layouts/Base.astro";
+const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
+---
+
+<Base title="Scope of Business Exposure">
+  <p class="back-link">
+    <a href={baseUrl || "/"}>← Back to landscape</a>
+  </p>
+
+  <header class="about-hero" style="--accent:#5fae5f">
+    <span class="hero-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <ellipse cx="12" cy="5" rx="8" ry="3" />
+        <path d="M4 5 V12 C4 14.5 8 15.5 12 15.5 C16 15.5 20 14.5 20 12 V5" />
+        <path d="M4 12 V19 C4 21.5 8 22.5 12 22.5 C16 22.5 20 21.5 20 19 V12" />
+      </svg>
+    </span>
+    <h1>Scope of Business Exposure</h1>
+    <p class="hero-tag">The X axis: from narrowly technical to organisation-wide.</p>
+  </header>
+
+  <article class="about-body">
+    <p>
+      Security isn't a single department. A vulnerability in a container
+      image and a regulator's compliance question both demand security
+      attention — but they live in completely different worlds. The X axis
+      arranges security work from narrowly technical on the left to broadly
+      organisational on the right.
+    </p>
+
+    <h2>Three layers, six departments</h2>
+
+    <h3 style="color:#5b8def">Technical Security <span class="muted">(left)</span></h3>
+    <p>
+      Closest to the code and the infrastructure.
+    </p>
+    <ul>
+      <li><strong>Infrastructure &amp; Cloud Security</strong> — networks, identities, cloud configurations.</li>
+      <li><strong>AppSec &amp; Product Security</strong> — application code, dependencies, secure SDLC.</li>
+    </ul>
+
+    <h3 style="color:#5fae5f">Process &amp; System Security <span class="muted">(middle)</span></h3>
+    <p>
+      Where signals are turned into decisions and where security engineering
+      lives.
+    </p>
+    <ul>
+      <li><strong>Security Engineering &amp; Data Security</strong> — DLP, data flows, security tooling.</li>
+      <li><strong>Security Operations (SOC &amp; IR)</strong> — detection, alerting, incident response.</li>
+    </ul>
+
+    <h3 style="color:#f1a983">Organizational Security <span class="muted">(right)</span></h3>
+    <p>
+      The human and governance layer of security.
+    </p>
+    <ul>
+      <li><strong>GRC &amp; TPRM</strong> — governance, risk, compliance, vendor risk management.</li>
+      <li><strong>Business Resilience &amp; Security Awareness</strong> — crisis response, awareness, human risk.</li>
+    </ul>
+
+    <p class="callout">
+      <strong>Why this matters:</strong> a use case sitting on the right
+      touches more stakeholders and faces more organisational friction than
+      one on the left. The X axis is a rough proxy for change-management
+      effort.
+    </p>
+  </article>
+</Base>
+
+<style>
+  .back-link {
+    margin: 0 0 1rem;
+    font-size: 0.9rem;
+  }
+
+  .about-hero {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 0.5rem;
+    padding: 2rem 1rem 1.5rem;
+    background: color-mix(in srgb, var(--accent) 10%, var(--bg-elevated));
+    border: 1px solid var(--border);
+    border-top: 4px solid var(--accent);
+    border-radius: 12px;
+    margin-bottom: 2rem;
+  }
+
+  .hero-icon {
+    width: 56px;
+    height: 56px;
+    color: var(--accent);
+  }
+
+  .hero-icon svg {
+    width: 100%;
+    height: 100%;
+  }
+
+  .about-hero h1 {
+    margin: 0.25rem 0 0;
+    font-size: 1.8rem;
+  }
+
+  .hero-tag {
+    margin: 0;
+    color: var(--text-muted);
+    max-width: 50ch;
+  }
+
+  .about-body {
+    max-width: 70ch;
+    margin: 0 auto;
+    font-size: 1rem;
+    line-height: 1.65;
+  }
+
+  .about-body h2 {
+    margin-top: 2rem;
+    font-size: 1.2rem;
+  }
+
+  .about-body h3 {
+    margin-top: 1.5rem;
+    margin-bottom: 0.25rem;
+    font-size: 1rem;
+  }
+
+  .about-body ul {
+    margin: 0.4rem 0 0.8rem;
+    padding-left: 1.4rem;
+  }
+
+  .muted {
+    color: var(--text-muted);
+    font-weight: 400;
+    font-size: 0.88em;
+  }
+
+  .callout {
+    margin-top: 2rem;
+    padding: 1rem 1.1rem;
+    background: var(--bg-elevated);
+    border-left: 3px solid #5fae5f;
+    border-radius: 4px;
+  }
+</style>

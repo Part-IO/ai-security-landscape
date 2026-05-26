@@ -1,0 +1,160 @@
+---
+import Base from "../../layouts/Base.astro";
+const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
+---
+
+<Base title="AI × Security Use Cases">
+  <p class="back-link">
+    <a href={baseUrl || "/"}>← Back to landscape</a>
+  </p>
+
+  <header class="about-hero" style="--accent:#f1a983">
+    <span class="hero-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="9" cy="12" r="5.5" />
+        <circle cx="15" cy="12" r="5.5" />
+        <path d="M12 7.5 v9" stroke-dasharray="1.2 1.6" />
+      </svg>
+    </span>
+    <h1>AI × Security Use Cases</h1>
+    <p class="hero-tag">What every box on the map actually is.</p>
+  </header>
+
+  <article class="about-body">
+    <p>
+      Every box on the landscape is a concrete way AI augments security
+      work. Not "AI for everything" — but a specific task where an ML or
+      LLM approach removes manual toil while a human stays in the loop on
+      the decisions that matter.
+    </p>
+
+    <h2>What makes a good AI × Security use case?</h2>
+
+    <p>
+      Six criteria, roughly in order of importance:
+    </p>
+
+    <ul>
+      <li>
+        <strong>Business Value</strong> — Time saved, scale gained, or
+        quality improved. If the answer is "marginal", AI rarely pays off.
+      </li>
+      <li>
+        <strong>Process Fit</strong> — The task is structured and
+        repeatable, not a one-off judgement call.
+      </li>
+      <li>
+        <strong>Data &amp; Tech Readiness</strong> — The data the model
+        needs is available, reasonably clean, and you can integrate the
+        output back into your tooling.
+      </li>
+      <li>
+        <strong>Operating Model Feasibility</strong> — Humans review the
+        output where it matters. Hand-offs and accountability are clear.
+      </li>
+      <li>
+        <strong>Risk Manageability</strong> — Errors are bounded, auditable,
+        and reversible.
+      </li>
+      <li>
+        <strong>AI Capability Fit</strong> — The kind of work matches what
+        AI is good at: language, pattern recognition, summarisation,
+        correlation.
+      </li>
+    </ul>
+
+    <h2>Augmentation, not autonomy</h2>
+    <p>
+      AI in security is most useful as an automation layer that supports
+      humans, not as an autonomous agent. The interesting questions —
+      "should we ship?", "is this a real incident?", "do we accept this
+      risk?" — stay with the people responsible for the answer.
+    </p>
+
+    <p>
+      Each topic on this map describes one such augmentation. The detail
+      page tells you what it does, what factors to weigh before adopting
+      it, and what other use cases it pairs with — either as a
+      prerequisite, a parallel effort, or as the next step in a pipeline.
+    </p>
+
+    <p class="callout">
+      <strong>How to use the map:</strong> pick a use case that matches
+      your team's current data maturity and business scope. Open it. Read
+      what comes <em>before</em> and <em>after</em>. Build the pipeline
+      that fits your context.
+    </p>
+  </article>
+</Base>
+
+<style>
+  .back-link {
+    margin: 0 0 1rem;
+    font-size: 0.9rem;
+  }
+
+  .about-hero {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 0.5rem;
+    padding: 2rem 1rem 1.5rem;
+    background: color-mix(in srgb, var(--accent) 12%, var(--bg-elevated));
+    border: 1px solid var(--border);
+    border-top: 4px solid var(--accent);
+    border-radius: 12px;
+    margin-bottom: 2rem;
+  }
+
+  .hero-icon {
+    width: 56px;
+    height: 56px;
+    color: var(--accent);
+  }
+
+  .hero-icon svg {
+    width: 100%;
+    height: 100%;
+  }
+
+  .about-hero h1 {
+    margin: 0.25rem 0 0;
+    font-size: 1.8rem;
+  }
+
+  .hero-tag {
+    margin: 0;
+    color: var(--text-muted);
+    max-width: 50ch;
+  }
+
+  .about-body {
+    max-width: 70ch;
+    margin: 0 auto;
+    font-size: 1rem;
+    line-height: 1.65;
+  }
+
+  .about-body h2 {
+    margin-top: 2rem;
+    font-size: 1.2rem;
+  }
+
+  .about-body ul {
+    margin: 0.4rem 0 0.8rem;
+    padding-left: 1.4rem;
+  }
+
+  .about-body li {
+    margin-bottom: 0.4rem;
+  }
+
+  .callout {
+    margin-top: 2rem;
+    padding: 1rem 1.1rem;
+    background: var(--bg-elevated);
+    border-left: 3px solid #f1a983;
+    border-radius: 4px;
+  }
+</style>

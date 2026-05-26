@@ -1,0 +1,207 @@
+---
+import Base from "../layouts/Base.astro";
+import CoordinateMap from "../components/CoordinateMap.astro";
+
+const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
+---
+
+<Base>
+  <section class="intro">
+    <h1>Where AI meets Security.</h1>
+    <p class="lead">
+      A community-maintained map of practical AI use cases in cybersecurity.
+      Click any box to dive in.
+    </p>
+  </section>
+
+  <CoordinateMap />
+
+  <section class="how-to-read">
+    <h2 class="how-heading">How to read this map</h2>
+    <div class="card-grid">
+      <a href={`${baseUrl}/about/data-maturity/`} class="explainer-card card-y">
+        <span class="card-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2 L4 6 V12 C4 17 8 21 12 22 C16 21 20 17 20 12 V6 Z" />
+            <path d="M8.5 12 l2.3 2.3 4.7 -4.7" />
+          </svg>
+        </span>
+        <h3>Y · Required Data Maturity</h3>
+        <p>
+          Bottom rows work with little or noisy data; top rows need clean,
+          structured, well-labelled data. The further up the topic sits, the
+          more data preparation it needs before AI delivers value.
+        </p>
+        <span class="learn-more">Learn more →</span>
+      </a>
+
+      <a href={`${baseUrl}/about/business-exposure/`} class="explainer-card card-x">
+        <span class="card-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <ellipse cx="12" cy="5" rx="8" ry="3" />
+            <path d="M4 5 V12 C4 14.5 8 15.5 12 15.5 C16 15.5 20 14.5 20 12 V5" />
+            <path d="M4 12 V19 C4 21.5 8 22.5 12 22.5 C16 22.5 20 21.5 20 19 V12" />
+          </svg>
+        </span>
+        <h3>X · Scope of Business Exposure</h3>
+        <p>
+          Left columns deal with code, systems and infrastructure. Right
+          columns deal with people, governance and the whole organisation.
+          A topic's column shows whose problem it primarily solves.
+        </p>
+        <span class="learn-more">Learn more →</span>
+      </a>
+
+      <a href={`${baseUrl}/about/use-cases/`} class="explainer-card card-boxes">
+        <span class="card-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="9" cy="12" r="5.5" />
+            <circle cx="15" cy="12" r="5.5" />
+            <path d="M12 7.5 v9" stroke-dasharray="1.2 1.6" />
+          </svg>
+        </span>
+        <h3>Use Cases at the Intersection</h3>
+        <p>
+          Every box is one concrete way AI helps a security task — an
+          opportunity to automate repetitive analysis, summarise findings,
+          or correlate signals while keeping a human in the loop.
+        </p>
+        <span class="learn-more">Learn more →</span>
+      </a>
+    </div>
+  </section>
+
+  <section class="contribute">
+    <p>
+      Open source ·{" "}
+      <a href="https://github.com/Part-IO/ai-security-landscape/blob/main/CONTRIBUTING.md">
+        Contribute a topic
+      </a>{" "}
+      · MIT
+    </p>
+  </section>
+</Base>
+
+<style>
+  .intro {
+    margin-bottom: 1rem;
+  }
+
+  .intro h1 {
+    margin: 0 0 0.25rem;
+    font-size: 1.9rem;
+    line-height: 1.2;
+  }
+
+  .lead {
+    color: var(--text-muted);
+    margin: 0;
+    font-size: 1rem;
+  }
+
+  .how-to-read {
+    margin-top: 3rem;
+  }
+
+  .how-heading {
+    text-align: center;
+    margin: 0 0 1.25rem;
+    font-size: 1.35rem;
+  }
+
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1rem;
+  }
+
+  .explainer-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 0.6rem;
+    padding: 1.6rem 1.2rem 1.4rem;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-top-width: 4px;
+    border-radius: 10px;
+    color: var(--text);
+    text-decoration: none;
+    transition:
+      transform 0.15s,
+      border-color 0.15s,
+      background 0.15s,
+      box-shadow 0.15s;
+  }
+
+  .explainer-card:hover {
+    transform: translateY(-2px);
+    text-decoration: none;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+  }
+
+  .card-y {
+    border-top-color: #5b8def;
+  }
+  .card-y .card-icon {
+    color: #5b8def;
+  }
+  .card-x {
+    border-top-color: #5fae5f;
+  }
+  .card-x .card-icon {
+    color: #5fae5f;
+  }
+  .card-boxes {
+    border-top-color: #f1a983;
+  }
+  .card-boxes .card-icon {
+    color: #f1a983;
+  }
+
+  .card-icon {
+    width: 42px;
+    height: 42px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .card-icon svg {
+    width: 100%;
+    height: 100%;
+  }
+
+  .explainer-card h3 {
+    margin: 0;
+    font-size: 1rem;
+    color: var(--text);
+  }
+
+  .explainer-card p {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    line-height: 1.55;
+    max-width: 36ch;
+  }
+
+  .learn-more {
+    color: var(--link);
+    font-size: 0.82rem;
+    margin-top: 0.4rem;
+  }
+
+  .contribute {
+    margin-top: 3rem;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.88rem;
+  }
+
+  .contribute p {
+    margin: 0;
+  }
+</style>

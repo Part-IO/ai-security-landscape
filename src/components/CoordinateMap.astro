@@ -1,0 +1,541 @@
+---
+import { getCollection } from "astro:content";
+import {
+  ML_TYPES,
+  DEPARTMENTS,
+  DEPARTMENT_CATEGORIES,
+  DEPARTMENT_TO_CATEGORY,
+} from "../content/config";
+
+const topics = await getCollection("topics");
+const topicsData = topics.map((t) => ({
+  slug: t.slug,
+  title: t.data.title,
+  maturity: t.data.maturity,
+  ml_types: t.data.ml_types,
+  departments: t.data.departments,
+}));
+
+const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+const CATEGORY_COLOR: Record<string, string> = {
+  "Technical Security": "#5b8def",
+  "Process & System Security": "#5fae5f",
+  "Organizational Security": "#f1a983",
+};
+
+const CATEGORY_TINT: Record<string, string> = {
+  "Technical Security": "rgba(91, 141, 239, 0.07)",
+  "Process & System Security": "rgba(95, 174, 95, 0.07)",
+  "Organizational Security": "rgba(241, 169, 131, 0.08)",
+};
+
+const DEPT_COLOR: Record<string, string> = {
+  "Infrastructure & Cloud Security": "#2c5fc7",
+  "AppSec & Product Security": "#7ca5f0",
+  "Security Engineering & Data Security": "#3e8c3e",
+  "Security Operations (SOC & Incident Response)": "#85c785",
+  "GRC & TPRM": "#d68b6c",
+  "Business Resilience & Security Awareness": "#f4baa0",
+};
+
+const DEPT_SHORT: Record<string, string> = {
+  "Infrastructure & Cloud Security": "Infrastructure & Cloud",
+  "AppSec & Product Security": "AppSec & Product",
+  "Security Engineering & Data Security": "Security Engineering & Data",
+  "Security Operations (SOC & Incident Response)": "Security Operations",
+  "GRC & TPRM": "GRC & TPRM",
+  "Business Resilience & Security Awareness": "Business Resilience",
+};
+
+const config = {
+  baseUrl,
+  catColor: CATEGORY_COLOR,
+  catTint: CATEGORY_TINT,
+  deptColor: DEPT_COLOR,
+  deptShort: DEPT_SHORT,
+  deptToCat: DEPARTMENT_TO_CATEGORY,
+  mlTypes: ML_TYPES,
+  departments: DEPARTMENTS,
+  categories: DEPARTMENT_CATEGORIES,
+};
+
+const dataJson = JSON.stringify(topicsData).replace(/<\//g, "<\\/");
+const configJson = JSON.stringify(config).replace(/<\//g, "<\\/");
+---
+
+<section class="map-section" aria-label="AI security landscape">
+  <div class="map-container">
+    <svg id="landscape-svg" viewBox="0 0 1240 760" preserveAspectRatio="xMidYMid meet"></svg>
+    <div id="map-tooltip" class="map-tooltip" hidden></div>
+  </div>
+</section>
+
+<script id="topics-data" type="application/json" is:inline set:html={dataJson}></script>
+<script id="map-config" type="application/json" is:inline set:html={configJson}></script>
+
+<script>
+  import * as d3 from "d3";
+
+  type Maturity = "established" | "emerging" | "experimental";
+  interface Topic {
+    slug: string;
+    title: string;
+    maturity: Maturity;
+    ml_types: string[];
+    departments: string[];
+  }
+  interface Config {
+    baseUrl: string;
+    catColor: Record<string, string>;
+    catTint: Record<string, string>;
+    deptColor: Record<string, string>;
+    deptShort: Record<string, string>;
+    deptToCat: Record<string, string>;
+    mlTypes: string[];
+    departments: string[];
+    categories: string[];
+  }
+
+  const topics: Topic[] = JSON.parse(
+    document.getElementById("topics-data")!.textContent!,
+  );
+  const config: Config = JSON.parse(
+    document.getElementById("map-config")!.textContent!,
+  );
+
+  const VIEW_W = 1240;
+  const VIEW_H = 760;
+  const MARGIN = { top: 56, right: 28, bottom: 80, left: 220 };
+  const INNER_W = VIEW_W - MARGIN.left - MARGIN.right;
+  const INNER_H = VIEW_H - MARGIN.top - MARGIN.bottom;
+
+  const svg = d3.select<SVGSVGElement, unknown>("#landscape-svg");
+  const tooltip = d3.select<HTMLDivElement, unknown>("#map-tooltip");
+
+  function splitTitle(title: string, maxPxPerLine: number): string[] {
+    const approxCharW = 6.0;
+    const maxChars = Math.max(8, Math.floor(maxPxPerLine / approxCharW));
+
+    if (title.length <= maxChars) return [title];
+
+    // Find last space at or before maxChars
+    let splitIdx = -1;
+    for (let i = Math.min(maxChars, title.length - 1); i > 0; i--) {
+      if (title[i] === " ") {
+        splitIdx = i;
+        break;
+      }
+    }
+    if (splitIdx === -1) {
+      // No space found — hard truncate single line
+      return [title.slice(0, Math.max(1, maxChars - 1)) + "…"];
+    }
+
+    const line1 = title.slice(0, splitIdx).trim();
+    let line2 = title.slice(splitIdx).trim();
+    if (line2.length > maxChars) {
+      line2 = line2.slice(0, Math.max(1, maxChars - 1)) + "…";
+    }
+    return [line1, line2];
+  }
+
+  function singleLine(title: string, maxPxPerLine: number): string {
+    const approxCharW = 6.0;
+    const maxChars = Math.max(8, Math.floor(maxPxPerLine / approxCharW));
+    if (title.length <= maxChars) return title;
+    return title.slice(0, Math.max(1, maxChars - 1)) + "…";
+  }
+
+  type Box = {
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+    color: string;
+    topic: Topic;
+  };
+
+  function computeBoxes(colW: number, rowH: number): Box[] {
+    const xBuckets = config.departments;
+    const yBuckets = config.mlTypes;
+
+    interface Raw {
+      xMinI: number;
+      xMaxI: number;
+      yMinI: number;
+      yMaxI: number;
+      topic: Topic;
+    }
+    const raws: Raw[] = topics.map((t) => {
+      const xIdxs = t.departments
+        .map((k) => xBuckets.indexOf(k))
+        .filter((i) => i >= 0);
+      const yIdxs = t.ml_types
+        .map((m) => yBuckets.indexOf(m))
+        .filter((i) => i >= 0);
+      return {
+        xMinI: Math.min(...xIdxs),
+        xMaxI: Math.max(...xIdxs),
+        yMinI: Math.min(...yIdxs),
+        yMaxI: Math.max(...yIdxs),
+        topic: t,
+      };
+    });
+
+    // Group by primary cell (top-left of the box) for vertical stacking
+    const groups = new Map<string, Raw[]>();
+    raws.forEach((r) => {
+      const key = `${r.xMinI},${r.yMaxI}`;
+      const arr = groups.get(key) ?? [];
+      arr.push(r);
+      groups.set(key, arr);
+    });
+
+    const boxes: Box[] = [];
+    const pad = 6;
+    // Each box is half a row tall — leaves visible empty space for future
+    // topics and lets multi-row spans straddle the boundary between rows
+    // cleanly.
+    const HEIGHT_FACTOR = 0.5;
+
+    for (const arr of groups.values()) {
+      const N = arr.length;
+      arr.forEach((r, idx) => {
+        const rowSpan = r.yMaxI - r.yMinI + 1;
+        const yTopOfTopCell = INNER_H - (r.yMaxI + 1) * rowH;
+        const yBottomOfBottomCell = INNER_H - r.yMinI * rowH;
+        const yCenter = (yTopOfTopCell + yBottomOfBottomCell) / 2;
+
+        const totalCellH = rowSpan * rowH;
+        const baseH = totalCellH * HEIGHT_FACTOR;
+        // If many topics in this primary cell, shrink height so they fit.
+        const slotH = N === 1 ? baseH : Math.min(baseH, totalCellH / N - 4);
+        const totalStackH = N * slotH;
+        const stackTop = yCenter - totalStackH / 2;
+        const slotY = stackTop + idx * slotH;
+
+        const cellW = (r.xMaxI - r.xMinI + 1) * colW;
+
+        boxes.push({
+          x: r.xMinI * colW + pad,
+          y: slotY + 2,
+          w: cellW - 2 * pad,
+          h: slotH - 4,
+          color: config.deptColor[r.topic.departments[0]],
+          topic: r.topic,
+        });
+      });
+    }
+    return boxes;
+  }
+
+  function render() {
+    svg.selectAll("*").remove();
+    const xBuckets = config.departments;
+    const yBuckets = config.mlTypes;
+    const colW = INNER_W / xBuckets.length;
+    const rowH = INNER_H / yBuckets.length;
+    const catW = INNER_W / 3;
+
+    const root = svg
+      .append("g")
+      .attr("transform", `translate(${MARGIN.left},${MARGIN.top})`);
+
+    // Tinted background INSIDE each category outline
+    root
+      .append("g")
+      .selectAll("rect.cat-tint")
+      .data(config.categories)
+      .join("rect")
+      .attr("class", "cat-tint")
+      .attr("x", (_, i) => i * catW + 2)
+      .attr("y", 0)
+      .attr("width", catW - 4)
+      .attr("height", INNER_H)
+      .attr("rx", 10)
+      .attr("fill", (d) => config.catTint[d]);
+
+    // Horizontal grid lines between ML rows
+    root
+      .append("g")
+      .selectAll("line")
+      .data(yBuckets.slice(0, -1))
+      .join("line")
+      .attr("x1", 0)
+      .attr("x2", INNER_W)
+      .attr("y1", (_, i) => (i + 1) * rowH)
+      .attr("y2", (_, i) => (i + 1) * rowH)
+      .attr("stroke", "var(--map-grid)")
+      .attr("opacity", 0.45)
+      .attr("stroke-dasharray", "2,5");
+
+    // Sub-column dividers between the 2 departments inside each category
+    root
+      .append("g")
+      .selectAll("line.subdiv")
+      .data(config.categories)
+      .join("line")
+      .attr("class", "subdiv")
+      .attr("x1", (_, i) => i * catW + catW / 2)
+      .attr("x2", (_, i) => i * catW + catW / 2)
+      .attr("y1", 12)
+      .attr("y2", INNER_H - 12)
+      .attr("stroke", "var(--map-grid)")
+      .attr("stroke-dasharray", "3,4")
+      .attr("opacity", 0.55);
+
+    // Category outlines + headers
+    const catGroups = root
+      .append("g")
+      .selectAll("g.cat-group")
+      .data(config.categories)
+      .join("g")
+      .attr("class", "cat-group");
+
+    catGroups
+      .append("rect")
+      .attr("class", "cat-outline")
+      .attr("x", (_, i) => i * catW + 2)
+      .attr("y", 0)
+      .attr("width", catW - 4)
+      .attr("height", INNER_H)
+      .attr("rx", 10)
+      .attr("fill", "none")
+      .attr("stroke", (d) => config.catColor[d])
+      .attr("stroke-width", 2)
+      .attr("opacity", 0.9);
+
+    catGroups
+      .append("text")
+      .attr("class", "cat-label")
+      .attr("x", (_, i) => i * catW + catW / 2)
+      .attr("y", -18)
+      .attr("text-anchor", "middle")
+      .attr("fill", (d) => config.catColor[d])
+      .attr("font-size", 15)
+      .attr("font-weight", 700)
+      .text((d) => d);
+
+    // Department labels (always shown)
+    root
+      .append("g")
+      .selectAll("text.dept-label")
+      .data(config.departments)
+      .join("text")
+      .attr("class", "dept-label")
+      .attr("x", (_, i) => i * colW + colW / 2)
+      .attr("y", INNER_H + 22)
+      .attr("text-anchor", "middle")
+      .attr("fill", "var(--text)")
+      .attr("font-size", 11)
+      .attr("font-weight", 500)
+      .text((d) => config.deptShort[d]);
+
+    // Y axis ML labels (full names)
+    root
+      .append("g")
+      .selectAll("text.ml-label")
+      .data(yBuckets)
+      .join("text")
+      .attr("class", "ml-label")
+      .attr("x", -12)
+      .attr("y", (_, i) => INNER_H - i * rowH - rowH / 2)
+      .attr("text-anchor", "end")
+      .attr("dominant-baseline", "central")
+      .attr("fill", "var(--text)")
+      .attr("font-size", 12)
+      .attr("font-weight", 500)
+      .text((d) => d);
+
+    // Axis titles
+    svg
+      .append("text")
+      .attr("x", MARGIN.left + INNER_W / 2)
+      .attr("y", VIEW_H - 16)
+      .attr("text-anchor", "middle")
+      .attr("fill", "var(--text-muted)")
+      .attr("font-size", 12)
+      .attr("font-style", "italic")
+      .text("Scope of Business Exposure  →");
+
+    svg
+      .append("text")
+      .attr(
+        "transform",
+        `translate(20, ${MARGIN.top + INNER_H / 2}) rotate(-90)`,
+      )
+      .attr("text-anchor", "middle")
+      .attr("fill", "var(--text-muted)")
+      .attr("font-size", 12)
+      .attr("font-style", "italic")
+      .text("Required Data Maturity  →");
+
+    // Topic boxes
+    const boxes = computeBoxes(colW, rowH);
+    const nodeLayer = root.append("g").attr("class", "node-layer");
+    const groups = nodeLayer
+      .selectAll<SVGGElement, Box>("g")
+      .data(boxes)
+      .join("g")
+      .attr("class", "topic-box")
+      .attr("data-slug", (d) => d.topic.slug)
+      .attr("transform", (d) => `translate(${d.x},${d.y})`)
+      .style("cursor", "pointer")
+      .on("click", (_event, d) => {
+        window.location.href = `${config.baseUrl}/topics/${d.topic.slug}/`;
+      })
+      .on("mouseenter", function (event, d) {
+        d3.select(this).select("rect").attr("stroke-width", 2.5);
+        d3.select(this).raise();
+        showTooltip(event, d.topic);
+      })
+      .on("mousemove", (event) => moveTooltip(event))
+      .on("mouseleave", function () {
+        d3.select(this).select("rect").attr("stroke-width", 1);
+        hideTooltip();
+      });
+
+    groups
+      .append("rect")
+      .attr("width", (d) => d.w)
+      .attr("height", (d) => d.h)
+      .attr("rx", 5)
+      .attr("fill", (d) => d.color)
+      .attr("fill-opacity", 0.92)
+      .attr("stroke", "var(--map-box-stroke)")
+      .attr("stroke-width", 1);
+
+    groups
+      .append("text")
+      .attr("x", (d) => d.w / 2)
+      .attr("y", (d) => d.h / 2)
+      .attr("text-anchor", "middle")
+      .attr("dominant-baseline", "central")
+      .attr("fill", "#0f1115")
+      .attr("font-size", 11)
+      .attr("font-weight", 600)
+      .attr("pointer-events", "none")
+      .each(function (d) {
+        if (d.h < 14) return;
+        const t = d3.select(this);
+        const usable = d.w - 10;
+        if (d.h < 26) {
+          // Not enough vertical room for two lines — single line, possibly truncated.
+          t.text(singleLine(d.topic.title, usable));
+          return;
+        }
+        const lines = splitTitle(d.topic.title, usable);
+        t.text(null);
+        if (lines.length === 1) {
+          t.append("tspan")
+            .attr("x", d.w / 2)
+            .attr("dy", 0)
+            .text(lines[0]);
+        } else {
+          t.append("tspan")
+            .attr("x", d.w / 2)
+            .attr("dy", "-0.55em")
+            .text(lines[0]);
+          t.append("tspan")
+            .attr("x", d.w / 2)
+            .attr("dy", "1.15em")
+            .text(lines[1]);
+        }
+      });
+  }
+
+  function showTooltip(event: MouseEvent, t: Topic) {
+    tooltip
+      .style("left", `${event.offsetX + 16}px`)
+      .style("top", `${event.offsetY + 16}px`)
+      .html(
+        `<div class="tt-title">${escapeHtml(t.title)}</div>` +
+          `<div class="tt-meta"><span class="badge badge-${t.maturity}">${t.maturity}</span></div>` +
+          `<div class="tt-meta"><strong>ML:</strong> ${escapeHtml(t.ml_types.join(", "))}</div>` +
+          `<div class="tt-meta"><strong>Depts:</strong> ${escapeHtml(t.departments.join(", "))}</div>`,
+      )
+      .attr("hidden", null);
+  }
+  function moveTooltip(event: MouseEvent) {
+    tooltip
+      .style("left", `${event.offsetX + 16}px`)
+      .style("top", `${event.offsetY + 16}px`);
+  }
+  function hideTooltip() {
+    tooltip.attr("hidden", true);
+  }
+  function escapeHtml(s: string): string {
+    return s.replace(/[&<>"']/g, (c) => {
+      const m: Record<string, string> = {
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      };
+      return m[c];
+    });
+  }
+
+  render();
+</script>
+
+<style>
+  .map-section {
+    --map-grid: var(--border);
+    --map-box-stroke: var(--bg);
+    margin-top: 1rem;
+  }
+
+  .map-container {
+    position: relative;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.75rem;
+  }
+
+  #landscape-svg {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+
+  .topic-box rect {
+    transition: filter 0.12s;
+  }
+
+  .topic-box:hover rect {
+    filter: brightness(1.08);
+  }
+
+  .map-tooltip {
+    position: absolute;
+    pointer-events: none;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.55rem 0.7rem;
+    font-size: 0.82rem;
+    max-width: 320px;
+    box-shadow: 0 6px 22px rgba(0, 0, 0, 0.45);
+    color: var(--text);
+    z-index: 10;
+  }
+
+  .map-tooltip[hidden] {
+    display: none;
+  }
+
+  .tt-title {
+    font-weight: 600;
+    margin-bottom: 0.35rem;
+  }
+
+  .tt-meta {
+    color: var(--text-muted);
+    font-size: 0.78rem;
+    margin-top: 0.2rem;
+  }
+</style>

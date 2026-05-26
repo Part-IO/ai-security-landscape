@@ -1,0 +1,199 @@
+---
+import {
+  FACTOR_KEYS,
+  FACTOR_LABELS,
+  FACTOR_DESCRIPTIONS,
+} from "../content/config";
+
+interface Props {
+  factors: Record<(typeof FACTOR_KEYS)[number], number>;
+  notes?: Partial<Record<(typeof FACTOR_KEYS)[number], string[]>>;
+}
+
+const { factors, notes = {} } = Astro.props;
+
+function colorForValue(value: number): string {
+  const hue = (value / 10) * 120;
+  return `hsl(${hue}, 62%, 48%)`;
+}
+
+function splitNote(n: string): { sign: "pro" | "con" | "neutral"; text: string } {
+  const t = n.trim();
+  if (t.startsWith("+")) return { sign: "pro", text: t.slice(1).trim() };
+  if (t.startsWith("-") || t.startsWith("–"))
+    return { sign: "con", text: t.slice(1).trim() };
+  return { sign: "neutral", text: t };
+}
+---
+
+<div class="factor-bars">
+  <p class="factor-intro">
+    Five factors scored 0–10. Higher is always better. Each factor lists the
+    main trade-offs as <span class="pro-tag">+</span> and{" "}
+    <span class="con-tag">−</span>.
+  </p>
+  {
+    FACTOR_KEYS.map((key) => {
+      const value = factors[key];
+      const pct = value * 10;
+      const factorNotes = notes[key] ?? [];
+      return (
+        <div class="factor-row">
+          <div class="factor-head">
+            <span class="factor-name" title={FACTOR_DESCRIPTIONS[key]}>
+              {FACTOR_LABELS[key]}
+            </span>
+            <span class="factor-value">{value}</span>
+          </div>
+          <div
+            class="factor-track"
+            role="meter"
+            aria-valuemin="0"
+            aria-valuemax="10"
+            aria-valuenow={value}
+            aria-label={FACTOR_LABELS[key]}
+          >
+            <div
+              class="factor-fill"
+              style={`width: ${pct}%; background: ${colorForValue(value)};`}
+            />
+          </div>
+          {factorNotes.length > 0 && (
+            <ul class="factor-notes">
+              {factorNotes.map((n) => {
+                const { sign, text } = splitNote(n);
+                return (
+                  <li class={`note note-${sign}`}>
+                    <span class="note-sign">
+                      {sign === "pro" ? "+" : sign === "con" ? "−" : "·"}
+                    </span>
+                    <span class="note-text">{text}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+      );
+    })
+  }
+</div>
+
+<style>
+  .factor-bars {
+    display: grid;
+    gap: 1.1rem;
+    margin-top: 0.25rem;
+  }
+
+  .factor-intro {
+    margin: 0 0 0.5rem;
+    color: var(--text-muted);
+    font-size: 0.82rem;
+    line-height: 1.5;
+  }
+
+  .pro-tag,
+  .con-tag {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-weight: 700;
+    width: 1.05em;
+    height: 1.05em;
+    line-height: 1em;
+    text-align: center;
+    border-radius: 3px;
+    font-size: 0.85em;
+  }
+
+  .pro-tag {
+    background: rgba(95, 174, 95, 0.2);
+    color: #5fae5f;
+  }
+
+  .con-tag {
+    background: rgba(241, 169, 131, 0.2);
+    color: #f1a983;
+  }
+
+  .factor-row {
+    display: grid;
+    gap: 0.3rem;
+  }
+
+  .factor-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.75rem;
+  }
+
+  .factor-name {
+    font-weight: 500;
+    color: var(--text);
+    font-size: 0.9rem;
+    cursor: help;
+  }
+
+  .factor-value {
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .factor-track {
+    position: relative;
+    width: 100%;
+    height: 8px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+
+  .factor-fill {
+    height: 100%;
+    border-radius: 999px;
+    transition: width 0.2s ease;
+  }
+
+  .factor-notes {
+    list-style: none;
+    padding: 0;
+    margin: 0.2rem 0 0;
+    display: grid;
+    gap: 0.2rem;
+  }
+
+  .note {
+    display: flex;
+    gap: 0.4rem;
+    font-size: 0.8rem;
+    line-height: 1.45;
+    color: var(--text-muted);
+  }
+
+  .note-sign {
+    flex: 0 0 1em;
+    font-family: var(--font-mono);
+    font-weight: 700;
+    text-align: center;
+  }
+
+  .note-pro .note-sign {
+    color: #5fae5f;
+  }
+
+  .note-con .note-sign {
+    color: #f1a983;
+  }
+
+  .note-neutral .note-sign {
+    color: var(--text-muted);
+  }
+
+  .note-text {
+    flex: 1 1 auto;
+  }
+</style>

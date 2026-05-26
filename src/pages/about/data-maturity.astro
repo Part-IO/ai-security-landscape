@@ -1,0 +1,156 @@
+---
+import Base from "../../layouts/Base.astro";
+const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
+---
+
+<Base title="Required Data Maturity">
+  <p class="back-link">
+    <a href={baseUrl || "/"}>← Back to landscape</a>
+  </p>
+
+  <header class="about-hero" style="--accent:#5b8def">
+    <span class="hero-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 2 L4 6 V12 C4 17 8 21 12 22 C16 21 20 17 20 12 V6 Z" />
+        <path d="M8.5 12 l2.3 2.3 4.7 -4.7" />
+      </svg>
+    </span>
+    <h1>Required Data Maturity</h1>
+    <p class="hero-tag">The Y axis: how much clean, structured data the approach needs.</p>
+  </header>
+
+  <article class="about-body">
+    <p>
+      In data science, a familiar saying is that 80% of the work is data
+      preparation. AI in security is no different. Two use cases with similar
+      business value can have very different total cost of ownership, simply
+      because one needs months of data plumbing before it produces anything
+      useful, and the other works on data you already have.
+    </p>
+    <p>
+      The Y axis captures that effort. From bottom to top, each band needs
+      progressively more <em>data maturity</em>: not just volume, but also
+      quality, labelling, and standardisation.
+    </p>
+
+    <h2>The five bands</h2>
+
+    <h3>Reinforcement Learning <span class="muted">(bottom — data-lean)</span></h3>
+    <p>
+      Learns by interacting with an environment, not by being trained on a
+      labelled corpus. Useful for adaptive policy tuning and bypass
+      simulations — but constrained to settings where you can simulate the
+      environment safely.
+    </p>
+
+    <h3>Unsupervised Learning</h3>
+    <p>
+      Finds structure in data without labels: anomaly detection, clustering,
+      noise reduction. Excellent when you have lots of raw telemetry but no
+      ground-truth examples of "bad".
+    </p>
+
+    <h3>Semi-Supervised Learning</h3>
+    <p>
+      A small set of labels plus a large unlabelled dataset. Practical when
+      labelling is expensive but you can hand-curate a few hundred examples
+      to bootstrap the model.
+    </p>
+
+    <h3>Supervised Learning</h3>
+    <p>
+      Trained on labelled examples. Classic ML — incident classification,
+      risk scoring, phishing prediction. Demands a clean, labelled dataset
+      that mirrors what you'll see in production.
+    </p>
+
+    <h3>Large Language Models <span class="muted">(top — data-rich)</span></h3>
+    <p>
+      Pre-trained on huge corpora; you mostly bring context (RAG), prompts,
+      or fine-tuning data. The model is data-rich by default — the question
+      becomes how well-organised <em>your</em> domain context is.
+    </p>
+
+    <p class="callout">
+      <strong>Why this matters:</strong> the higher up the Y axis, the more
+      time you'll spend on data infrastructure (pipelines, embeddings,
+      governance) before you see results. Pick approaches that match what
+      you already have, then climb deliberately.
+    </p>
+  </article>
+</Base>
+
+<style>
+  .back-link {
+    margin: 0 0 1rem;
+    font-size: 0.9rem;
+  }
+
+  .about-hero {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 0.5rem;
+    padding: 2rem 1rem 1.5rem;
+    background: color-mix(in srgb, var(--accent) 10%, var(--bg-elevated));
+    border: 1px solid var(--border);
+    border-top: 4px solid var(--accent);
+    border-radius: 12px;
+    margin-bottom: 2rem;
+  }
+
+  .hero-icon {
+    width: 56px;
+    height: 56px;
+    color: var(--accent);
+  }
+
+  .hero-icon svg {
+    width: 100%;
+    height: 100%;
+  }
+
+  .about-hero h1 {
+    margin: 0.25rem 0 0;
+    font-size: 1.8rem;
+  }
+
+  .hero-tag {
+    margin: 0;
+    color: var(--text-muted);
+    max-width: 50ch;
+  }
+
+  .about-body {
+    max-width: 70ch;
+    margin: 0 auto;
+    font-size: 1rem;
+    line-height: 1.65;
+  }
+
+  .about-body h2 {
+    margin-top: 2rem;
+    font-size: 1.2rem;
+  }
+
+  .about-body h3 {
+    margin-top: 1.5rem;
+    margin-bottom: 0.25rem;
+    font-size: 1rem;
+  }
+
+  .muted {
+    color: var(--text-muted);
+    font-weight: 400;
+    font-size: 0.88em;
+  }
+
+  .callout {
+    margin-top: 2rem;
+    padding: 1rem 1.1rem;
+    background: var(--bg-elevated);
+    border-left: 3px solid #5b8def;
+    border-radius: 4px;
+  }
+</style>
