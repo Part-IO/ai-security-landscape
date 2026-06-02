@@ -1,32 +1,26 @@
 # AI Security Landscape
 
-An open, community-maintained map of AI use cases in cybersecurity — organised
-by ML / AI approach and security department.
+An open, community-maintained map of practical AI use cases in cybersecurity,
+organised by ML / AI approach and security department.
+
+**Live site:** <https://part-io.github.io/ai-security-landscape/>
 
 Each topic lives in a single Markdown file. Add one and the site picks it up
 automatically. No JavaScript or build knowledge required to contribute.
 
-## Status
-
-Early-stage. The interactive coordinate map and the per-topic detail UI are
-being built out in phases.
-
-| Phase | Scope | State |
-|---|---|---|
-| 1 | Project scaffold, schema, contributor template, base pages | done |
-| 2 | D3 coordinate map on the overview page | next |
-| 3 | Detail page with key-factor bars and Mermaid connection tree | upcoming |
-| 4 | Import the remaining topics from the source spreadsheet | upcoming |
-| 5 | PR validation workflow + GitHub Pages deploy | upcoming |
-
 ## How it works
 
-- **Content**: every topic is a Markdown file in `src/content/topics/`.
-- **Schema**: `src/content/config.ts` defines the required frontmatter fields
-  (title, position, maturity, factors, connections). The build fails if a
-  topic violates the schema.
-- **Rendering**: Astro builds a fully static site. No backend, no database.
-- **Hosting**: designed for GitHub Pages once the repo is public.
+- **Content.** Every topic is a Markdown file in `src/content/topics/`.
+- **Schema.** `src/content/config.ts` defines the required frontmatter
+  fields (title, departments, ML types, maturity, factors, references,
+  connections, optional hero image). The build fails if a topic violates
+  the schema.
+- **Rendering.** Astro builds a fully static site. No backend, no database.
+- **Hosting.** GitHub Pages, deployed automatically by
+  `.github/workflows/deploy.yml` on every push to `main`.
+- **PR validation.** `.github/workflows/validate.yml` runs `astro check`
+  and a full build on every pull request, so frontmatter errors and broken
+  connection references fail before merge.
 
 ## Run locally
 
@@ -42,8 +36,8 @@ Node 18+ recommended.
 
 See [CONTRIBUTING.md](./CONTRIBUTING.md). The short version: copy
 `src/content/topics/_template.md`, fill in the frontmatter, write a short
-description, open a pull request.
+description, open a pull request. CI validates the schema for you.
 
 ## License
 
-MIT — see [LICENSE](./LICENSE).
+MIT, see [LICENSE](./LICENSE).

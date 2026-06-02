@@ -45,19 +45,24 @@ factors:
   data_readiness: 5
 
 # Optional: per-factor notes. Each note starts with "+ " (pro) or "- " (con).
-# Keep them short, keywords not sentences.
+# Keep them short, keywords not sentences. Aim for at least one con per
+# factor unless the score is genuinely a 9 or 10 with no real downside.
 factor_notes:
   business_impact:
     - "+ Eliminates a manual, repetitive process"
     - "- Limited upside for small teams"
   cost_efficiency:
     - "- High token usage on large inputs"
+    - "+ No specialised hardware required"
   implementation_ease:
     - "+ Drop-in for any IDE / pipeline"
+    - "- Output quality depends on input quality"
   capability_fit:
     - "+ Well-matched to LLM strengths"
+    - "- Weaker on rare or proprietary data formats"
   data_readiness:
     - "+ Works on data you already have"
+    - "- Inconsistent formats across teams add friction"
 
 # Optional: links to representative open-source projects, papers, or vendor pages.
 # Each entry: a URL and a 1-2 sentence description tying the project to THIS
@@ -81,9 +86,12 @@ connections:
 ---
 
 Write a short paragraph or two describing the use case. What problem does
-it solve, what AI/ML technique is used, what value does it deliver? This
-section is the main content of the detail page. Add headings below for
-"Use Cases", "How it works", "Limitations", etc. as needed.
+it solve, what AI/ML technique is used, what value does it deliver?
+
+That is enough for a minimal topic. For longer topics, the reviewed topics
+on the site use a numbered structure with sections like *Concrete example*,
+*How it works*, *Notes & limitations*, and *When this is the wrong tool*.
+See CONTRIBUTING.md for the recommended shape.
 
 ## Use Cases
 
