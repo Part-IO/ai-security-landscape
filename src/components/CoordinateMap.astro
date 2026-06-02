@@ -183,14 +183,47 @@ const configJson = JSON.stringify(config).replace(/<\//g, "<\\/");
       };
     });
 
-    // Group by primary cell (top-left of the box) for vertical stacking
-    const groups = new Map<string, Raw[]>();
-    raws.forEach((r) => {
-      const key = `${r.xMinI},${r.yMaxI}`;
-      const arr = groups.get(key) ?? [];
+    // Per-row interval scheduling: assign each topic a sub-row in its
+    // primary ML row (yMaxI). Within a row, sub-row 0 is filled first;
+    // topics that don't fit horizontally with anything already placed in
+    // sub-row 0 get sub-row 1, and so on. This produces the minimum number
+    // of sub-rows for the actual overlaps — e.g. SOAR can sit on the same
+    // sub-row as GenAI because their X ranges don't touch, even though both
+    // overlap with the wider RAG box that sits below.
+    const byRow = new Map<number, Raw[]>();
+    for (const r of raws) {
+      const arr = byRow.get(r.yMaxI) ?? [];
       arr.push(r);
-      groups.set(key, arr);
-    });
+      byRow.set(r.yMaxI, arr);
+    }
+
+    const subRowOf = new Map<Raw, number>();
+    const subRowCount = new Map<number, number>();
+
+    for (const [row, items] of byRow) {
+      items.sort((a, b) => a.xMinI - b.xMinI || a.xMaxI - b.xMaxI);
+      const occupied: Raw[][] = [];
+      for (const item of items) {
+        let placedSub = -1;
+        for (let i = 0; i < occupied.length; i++) {
+          const fits = occupied[i].every(
+            (other) =>
+              item.xMaxI < other.xMinI || other.xMaxI < item.xMinI,
+          );
+          if (fits) {
+            occupied[i].push(item);
+            placedSub = i;
+            break;
+          }
+        }
+        if (placedSub < 0) {
+          occupied.push([item]);
+          placedSub = occupied.length - 1;
+        }
+        subRowOf.set(item, placedSub);
+      }
+      subRowCount.set(row, occupied.length);
+    }
 
     const boxes: Box[] = [];
     const pad = 6;
@@ -199,32 +232,33 @@ const configJson = JSON.stringify(config).replace(/<\//g, "<\\/");
     // cleanly.
     const HEIGHT_FACTOR = 0.5;
 
-    for (const arr of groups.values()) {
-      const N = arr.length;
-      arr.forEach((r, idx) => {
-        const rowSpan = r.yMaxI - r.yMinI + 1;
-        const yTopOfTopCell = INNER_H - (r.yMaxI + 1) * rowH;
-        const yBottomOfBottomCell = INNER_H - r.yMinI * rowH;
-        const yCenter = (yTopOfTopCell + yBottomOfBottomCell) / 2;
+    for (const r of raws) {
+      const rowSpan = r.yMaxI - r.yMinI + 1;
+      const yTopOfTopCell = INNER_H - (r.yMaxI + 1) * rowH;
+      const yBottomOfBottomCell = INNER_H - r.yMinI * rowH;
+      const yCenter = (yTopOfTopCell + yBottomOfBottomCell) / 2;
 
-        const totalCellH = rowSpan * rowH;
-        const baseH = totalCellH * HEIGHT_FACTOR;
-        // If many topics in this primary cell, shrink height so they fit.
-        const slotH = N === 1 ? baseH : Math.min(baseH, totalCellH / N - 4);
-        const totalStackH = N * slotH;
-        const stackTop = yCenter - totalStackH / 2;
-        const slotY = stackTop + idx * slotH;
+      const totalCellH = rowSpan * rowH;
+      const baseH = totalCellH * HEIGHT_FACTOR;
+      const subRowIdx = subRowOf.get(r) ?? 0;
+      const totalSubRows = subRowCount.get(r.yMaxI) ?? 1;
 
-        const cellW = (r.xMaxI - r.xMinI + 1) * colW;
+      // Shrink slot height only when sub-rows would otherwise overflow.
+      const slotH =
+        totalSubRows === 1
+          ? baseH
+          : Math.min(baseH, totalCellH / totalSubRows - 4);
+      const totalStackH = totalSubRows * slotH;
+      const stackTop = yCenter - totalStackH / 2;
+      const slotY = stackTop + subRowIdx * slotH;
 
-        boxes.push({
-          x: r.xMinI * colW + pad,
-          y: slotY + 2,
-          w: cellW - 2 * pad,
-          h: slotH - 4,
-          color: config.deptColor[r.topic.departments[0]],
-          topic: r.topic,
-        });
+      boxes.push({
+        x: r.xMinI * colW + pad,
+        y: slotY + 2,
+        w: (r.xMaxI - r.xMinI + 1) * colW - 2 * pad,
+        h: slotH - 4,
+        color: config.deptColor[r.topic.departments[0]],
+        topic: r.topic,
       });
     }
     return boxes;

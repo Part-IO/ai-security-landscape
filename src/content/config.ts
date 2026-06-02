@@ -1,11 +1,14 @@
 import { defineCollection, reference, z } from "astro:content";
 
+// Order matters: index 0 sits at the BOTTOM of the Y axis (data-lean),
+// index N at the TOP (data-rich). This matches the bottom-up explanation on
+// the /about/data-maturity page and keeps the upward-pointing arrow consistent.
 export const ML_TYPES = [
-  "Large Language Models",
-  "Supervised Learning",
-  "Semi-Supervised Learning",
-  "Unsupervised Learning",
   "Reinforcement Learning",
+  "Unsupervised Learning",
+  "Semi-Supervised Learning",
+  "Supervised Learning",
+  "Large Language Models",
 ] as const;
 
 export const DEPARTMENTS = [
@@ -30,6 +33,18 @@ export const DEPARTMENT_TO_CATEGORY: Record<(typeof DEPARTMENTS)[number], (typeo
   "Security Operations (SOC & Incident Response)": "Process & System Security",
   "GRC & TPRM": "Organizational Security",
   "Business Resilience & Security Awareness": "Organizational Security",
+};
+
+// Department colours — used both on the landscape map and in the
+// related-topics diagram so that a topic's identity is consistent across
+// the site.
+export const DEPARTMENT_COLOR: Record<(typeof DEPARTMENTS)[number], string> = {
+  "Infrastructure & Cloud Security": "#2c5fc7",
+  "AppSec & Product Security": "#7ca5f0",
+  "Security Engineering & Data Security": "#3e8c3e",
+  "Security Operations (SOC & Incident Response)": "#85c785",
+  "GRC & TPRM": "#d68b6c",
+  "Business Resilience & Security Awareness": "#f4baa0",
 };
 
 export const MATURITY_LEVELS = ["established", "emerging", "experimental"] as const;
@@ -70,11 +85,18 @@ const factorNoteList = z.array(z.string()).default([]);
 
 const topics = defineCollection({
   type: "content",
-  schema: z.object({
+  schema: ({ image }) => z.object({
     title: z.string().min(1),
     maturity: z.enum(MATURITY_LEVELS),
     ml_types: z.array(z.enum(ML_TYPES)).min(1),
     departments: z.array(z.enum(DEPARTMENTS)).min(1),
+    hero_image: z
+      .object({
+        src: image(),
+        alt: z.string(),
+        caption: z.string().optional(),
+      })
+      .optional(),
     factors: z.object({
       business_impact: factorScale,
       cost_efficiency: factorScale,

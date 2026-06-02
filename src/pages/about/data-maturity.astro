@@ -21,11 +21,19 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
 
   <article class="about-body">
     <p>
-      In data science, a familiar saying is that 80% of the work is data
-      preparation. AI in security is no different. Two use cases with similar
-      business value can have very different total cost of ownership, simply
-      because one needs months of data plumbing before it produces anything
-      useful, and the other works on data you already have.
+      In data science, a familiar saying claims that 80% of the work is data
+      preparation. The
+      <a
+        href="https://www.kdnuggets.com/2016/04/crowdflower-2016-data-science-repost.html"
+        target="_blank"
+        rel="noopener noreferrer"
+      >2016 CrowdFlower Data Science Report</a>
+      put rough numbers behind it: 60% of data scientists' time goes into
+      cleaning and organising data, another 19% into collecting it, and only
+      9% into mining for patterns. AI in security is no different. Two use
+      cases with similar business value can have very different total cost of
+      ownership, simply because one needs months of data plumbing before it
+      produces anything useful, and the other works on data you already have.
     </p>
     <p>
       The Y axis captures that effort. From bottom to top, each band needs
@@ -33,42 +41,129 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
       quality, labelling, and standardisation.
     </p>
 
+    <figure class="venn-figure">
+      <svg
+        viewBox="0 0 700 560"
+        xmlns="http://www.w3.org/2000/svg"
+        class="venn-svg"
+        role="img"
+        aria-label="Venn diagram showing the three classical machine learning paradigms (Supervised, Unsupervised, Reinforcement Learning), with Semi-Supervised Learning as the intersection of Supervised and Unsupervised, and LLMs sitting in the centre of all three because their training combines pre-training, supervised fine-tuning, and RLHF."
+      >
+        <circle cx="265" cy="200" r="140" fill="rgba(91,141,239,0.18)" stroke="#5b8def" stroke-width="2.5"/>
+        <circle cx="435" cy="200" r="140" fill="rgba(95,174,95,0.18)" stroke="#5fae5f" stroke-width="2.5"/>
+        <circle cx="350" cy="347" r="140" fill="rgba(241,169,131,0.18)" stroke="#f1a983" stroke-width="2.5"/>
+
+        <text x="200" y="170" class="paradigm-label" fill="#5b8def" text-anchor="middle">Supervised</text>
+        <text x="200" y="195" class="paradigm-label" fill="#5b8def" text-anchor="middle">Learning</text>
+
+        <text x="500" y="170" class="paradigm-label" fill="#5fae5f" text-anchor="middle">Unsupervised</text>
+        <text x="500" y="195" class="paradigm-label" fill="#5fae5f" text-anchor="middle">Learning</text>
+
+        <text x="350" y="430" class="paradigm-label" fill="#f1a983" text-anchor="middle">Reinforcement</text>
+        <text x="350" y="455" class="paradigm-label" fill="#f1a983" text-anchor="middle">Learning</text>
+
+        <text x="350" y="140" class="intersection-label" text-anchor="middle">Semi-Supervised</text>
+
+        <circle cx="350" cy="250" r="13" fill="#f1c40f" stroke="#fff" stroke-width="2.5"/>
+        <text x="350" y="290" class="llm-label" text-anchor="middle">LLMs</text>
+      </svg>
+      <figcaption>
+        LLMs sit in the centre because their training combines all three
+        paradigms: self-supervised pre-training, supervised fine-tuning, and
+        RLHF. Semi-Supervised Learning is the named intersection of
+        supervised and unsupervised approaches.
+      </figcaption>
+    </figure>
+
     <h2>The five bands</h2>
 
-    <h3>Reinforcement Learning <span class="muted">(bottom — data-lean)</span></h3>
+    <h3>Reinforcement Learning <span class="muted">(bottom, data-lean)</span></h3>
     <p>
       Learns by interacting with an environment, not by being trained on a
-      labelled corpus. Useful for adaptive policy tuning and bypass
-      simulations — but constrained to settings where you can simulate the
-      environment safely.
+      labelled corpus. Fits security problems where the environment itself is
+      the data source: a self-optimising firewall exploring which policies
+      block attack patterns without breaking legitimate traffic, a WAF bypass
+      tester that mutates payloads until something slips through, or a
+      crisis-response simulator that learns escalation strategies through
+      repeated scenarios. The cost is not labelled data, it is a safe and
+      realistic enough simulation of the network or system the agent gets to
+      explore.
     </p>
 
     <h3>Unsupervised Learning</h3>
     <p>
-      Finds structure in data without labels: anomaly detection, clustering,
-      noise reduction. Excellent when you have lots of raw telemetry but no
-      ground-truth examples of "bad".
+      Finds structure in raw data without any labels: anomaly detection,
+      clustering, noise reduction. Excellent when telemetry is plentiful but
+      ground-truth examples of bad behaviour are not: CloudTrail and Azure
+      Activity Logs, Lambda invocation metrics, network traffic flows, user
+      action streams for insider-risk detection, duplicate alerts in a SIEM.
+      Most security teams already sit on top of the data; what they lack is a
+      labelled set of incidents that would make supervised approaches
+      possible.
     </p>
 
     <h3>Semi-Supervised Learning</h3>
     <p>
-      A small set of labels plus a large unlabelled dataset. Practical when
-      labelling is expensive but you can hand-curate a few hundred examples
-      to bootstrap the model.
+      A small set of labels combined with a large unlabelled dataset. This
+      matches the reality of security work: a few hundred confirmed incidents
+      or hand-classified policy decisions sit on top of millions of raw
+      events. Practical applications include cloud misconfiguration detection
+      (a handful of well-classified cases plus a large infrastructure to
+      scan), proactive threat hunting (analysts label a few campaigns, the
+      model extends the pattern across the estate), critical attack-path
+      analysis, and compliance drift detection seeded with known control
+      violations.
     </p>
 
     <h3>Supervised Learning</h3>
     <p>
-      Trained on labelled examples. Classic ML — incident classification,
-      risk scoring, phishing prediction. Demands a clean, labelled dataset
-      that mirrors what you'll see in production.
+      Trained on labelled examples. Classic ML in security: incident
+      classification with next-best-action recommendation, AI-based vendor
+      risk scoring, phishing-susceptibility prediction, automated DLP
+      labelling. Demands a clean, labelled dataset that mirrors what you will
+      see in production. The cost is not the model, it is the months of
+      curation, the agreement on label definitions across teams, and the
+      continuous re-labelling as the threat landscape shifts.
     </p>
 
-    <h3>Large Language Models <span class="muted">(top — data-rich)</span></h3>
+    <h3>Large Language Models <span class="muted">(top, data-rich)</span></h3>
     <p>
-      Pre-trained on huge corpora; you mostly bring context (RAG), prompts,
-      or fine-tuning data. The model is data-rich by default — the question
-      becomes how well-organised <em>your</em> domain context is.
+      Pre-trained on huge corpora, so the model itself is data-rich by
+      default. The question is how well-organised <em>your</em> domain
+      context is. Three architectural patterns dominate in security, each
+      with a different data-maturity profile.
+    </p>
+
+    <h4>Pure LLM (unstructured text and code)</h4>
+    <p>
+      GPT-class models reasoning over text and code without external
+      retrieval. Strong for text processing, summarising, and enrichment. In
+      security: STRIDE threat modelling on architecture documents,
+      SAST-finding explanation, log narrative generation, drafting incident
+      reports. Source documents must exist in machine-readable form, but no
+      separate knowledge base is required.
+    </p>
+
+    <h4>RAG (internal docs and CVEs)</h4>
+    <p>
+      LLM plus a vector database holding internal documentation, CVEs, and
+      prior triage outcomes. Reduces hallucination by grounding answers in
+      retrieved evidence. In security: vulnerability triage hubs, audit and
+      compliance document intelligence, virtual security assistants for SOC
+      playbook automation. Data maturity required is high; the knowledge
+      base itself is the critical asset and needs continuous curation,
+      access control and drift handling.
+    </p>
+
+    <h4>Fine-Tuning (proprietary logs and APIs)</h4>
+    <p>
+      Adjusting the base model itself to a specific domain or stack. Used
+      when the language of the problem (proprietary log formats, internal
+      API code, niche compliance terminology) is not adequately covered by
+      pre-training. In security this is rare; mostly relevant for very
+      specialised stacks or large organisations with stable, proprietary
+      tooling. Data maturity required is very high, with significant
+      volumes of hand-curated training examples.
     </p>
 
     <p class="callout">
@@ -140,6 +235,14 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
     font-size: 1rem;
   }
 
+  .about-body h4 {
+    margin-top: 1.1rem;
+    margin-bottom: 0.2rem;
+    font-size: 0.92rem;
+    color: var(--text);
+    font-weight: 600;
+  }
+
   .muted {
     color: var(--text-muted);
     font-weight: 400;
@@ -152,5 +255,44 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
     background: var(--bg-elevated);
     border-left: 3px solid #5b8def;
     border-radius: 4px;
+  }
+
+  .venn-figure {
+    margin: 2rem auto;
+    text-align: center;
+  }
+
+  .venn-svg {
+    width: 100%;
+    max-width: 640px;
+    height: auto;
+    display: block;
+    margin: 0 auto;
+  }
+
+  .venn-svg .paradigm-label {
+    font-size: 19px;
+    font-weight: 600;
+  }
+
+  .venn-svg .intersection-label {
+    font-size: 16px;
+    font-weight: 500;
+    fill: var(--text);
+  }
+
+  .venn-svg .llm-label {
+    font-size: 16px;
+    font-weight: 700;
+    fill: var(--text);
+  }
+
+  .venn-figure figcaption {
+    margin: 0.6rem auto 0;
+    max-width: 52ch;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    font-style: italic;
+    line-height: 1.55;
   }
 </style>

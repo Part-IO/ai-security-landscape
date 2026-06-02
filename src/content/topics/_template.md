@@ -1,19 +1,19 @@
 ---
-# ─── HOW TO ADD A NEW TOPIC ──────────────────────────────────────────────────
+# --- HOW TO ADD A NEW TOPIC --------------------------------------------------
 # 1. Copy this file and rename it to `your-topic-slug.md` (lowercase, dashes).
 # 2. Fill in every field below. The build will fail if a field is missing.
 # 3. Open a pull request. The maintainer will review and merge.
 #
 # Need help? See CONTRIBUTING.md in the repo root.
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 
 # Short, human-readable name. Shown on the map and as the page title.
 title: "Example Topic Name"
 
 # One of: established | emerging | experimental
-#   established  — production-proven, broadly available tooling
-#   emerging     — early adopters, working solutions exist
-#   experimental — research / PoC stage
+#   established:  production-proven, broadly available tooling
+#   emerging:     early adopters, working solutions exist
+#   experimental: research / PoC stage
 maturity: emerging
 
 # Primary ML / AI approaches. At least one. List multiple if the topic spans
@@ -23,12 +23,20 @@ ml_types:
   - "Large Language Models"
 
 # Primary security departments. At least one. List multiple if the topic spans
-# departments — the box on the map will stretch across them. Colour is taken
-# from the FIRST department listed.
+# departments. The box on the map will then stretch across them, and colour is
+# taken from the FIRST department listed.
 departments:
   - "Security Engineering & Data Security"
 
-# Five factor scores, each 0–10. 10 is always GOOD.
+# Optional: hero image shown at the top of the topic page.
+# Place the image under src/assets/topics/<slug>/<filename>, then reference it
+# with a relative path from THIS file.
+# hero_image:
+#   src: "../../assets/topics/your-topic-slug/diagram.png"
+#   alt: "Short description of what the image shows (for accessibility)."
+#   caption: "Optional caption rendered under the image."
+
+# Five factor scores, each 0 to 10. 10 is always GOOD.
 factors:
   business_impact: 5
   cost_efficiency: 5
@@ -37,7 +45,7 @@ factors:
   data_readiness: 5
 
 # Optional: per-factor notes. Each note starts with "+ " (pro) or "- " (con).
-# Keep them short — keywords, not sentences.
+# Keep them short, keywords not sentences.
 factor_notes:
   business_impact:
     - "+ Eliminates a manual, repetitive process"
@@ -62,10 +70,10 @@ references:
 # Each entry needs `to:` (the slug = filename without .md) and may have:
 #   note:     short description focused on what DATA is reused between topics
 #   relation: temporal relationship
-#     "after"    — linked topic comes AFTER this one (this enables it). Default.
-#     "before"   — linked topic comes BEFORE this one (this depends on it).
-#     "parallel" — related but no temporal order.
-# Declare a connection only ONCE — the other side is generated automatically.
+#     "after":    linked topic comes AFTER this one (this enables it). Default.
+#     "before":   linked topic comes BEFORE this one (this depends on it).
+#     "parallel": related but no temporal order.
+# Declare a connection only ONCE. The other side is generated automatically.
 connections:
   - to: "another-topic-slug"
     relation: after
@@ -74,8 +82,8 @@ connections:
 
 Write a short paragraph or two describing the use case. What problem does
 it solve, what AI/ML technique is used, what value does it deliver? This
-section is the main content of the detail page — feel free to add headings
-below for "Use Cases", "How it works", "Limitations", etc.
+section is the main content of the detail page. Add headings below for
+"Use Cases", "How it works", "Limitations", etc. as needed.
 
 ## Use Cases
 

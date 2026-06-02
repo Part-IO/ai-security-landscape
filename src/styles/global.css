@@ -202,3 +202,33 @@ code {
   color: var(--accent-experimental);
   border: 1px solid color-mix(in srgb, var(--accent-experimental) 40%, transparent);
 }
+
+/* Markdown tables inside topic prose */
+.prose table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.25rem 0;
+  font-size: 0.95rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.prose th,
+.prose td {
+  padding: 0.6rem 0.85rem;
+  text-align: left;
+  border: 1px solid var(--border);
+  vertical-align: top;
+}
+
+.prose th {
+  background: var(--bg-card);
+  font-weight: 600;
+  color: var(--text);
+}
+
+.prose tr:nth-child(even) td {
+  background: color-mix(in srgb, var(--bg-card) 35%, transparent);
+}
