@@ -8,6 +8,9 @@ organised by ML / AI approach and security department.
 Each topic lives in a single Markdown file. Add one and the site picks it up
 automatically. No JavaScript or build knowledge required to contribute.
 
+`qr-code.png` in the repository root encodes the live URL above, ready to
+drop into slides or print materials.
+
 ## How it works
 
 - **Content.** Every topic is a Markdown file in `src/content/topics/`.
