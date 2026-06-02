@@ -76,7 +76,9 @@ const beforeTopics = related.filter((r) => r.position === "before");
 const afterTopics = related.filter((r) => r.position === "after");
 const parallelTopics = related.filter((r) => r.position === "parallel");
 
-const repoEditUrl = `https://github.com/Part-IO/ai-security-landscape/edit/main/src/content/topics/${topic.slug}.md`;
+const repoBaseUrl =
+  process.env.REPO_URL || "https://github.com/Part-IO/ai-security-landscape";
+const repoEditUrl = `${repoBaseUrl}/edit/main/src/content/topics/${topic.slug}.md`;
 ---
 
 <Base title={topic.data.title}>
