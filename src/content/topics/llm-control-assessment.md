@@ -48,9 +48,6 @@ connections:
   - to: "soar-runbook-agents-mcp"
     relation: after
     note: "Extracted incident-response procedures become the automated SOAR playbooks the agents run."
-  - to: "continuous-controls-monitoring"
-    relation: parallel
-    note: "Both topics work on the same control + policy corpus. This one builds the baseline (what controls exist, what evidence backs them); CCM watches for drift over time."
   - to: "crisis-response-rl"
     relation: after
     note: "Compliance-defined response strategies feed the simulated crisis scenarios."
