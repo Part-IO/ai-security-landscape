@@ -14,6 +14,10 @@ const topicsData = topics.map((t) => ({
   maturity: t.data.maturity,
   ml_types: t.data.ml_types,
   departments: t.data.departments,
+  connections: t.data.connections.map((c) => ({
+    to: c.to.slug,
+    relation: c.relation,
+  })),
 }));
 
 const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -67,7 +71,27 @@ const configJson = JSON.stringify(config).replace(/<\//g, "<\\/");
 <section class="map-section" aria-label="AI security landscape">
   <div class="map-container">
     <svg id="landscape-svg" viewBox="0 0 1240 760" preserveAspectRatio="xMidYMid meet"></svg>
-    <div id="map-tooltip" class="map-tooltip" hidden></div>
+  </div>
+  <div class="map-legend" role="note">
+    <span class="legend-hint">Hover or tap a topic to see its connections:</span>
+    <span class="legend-item">
+      <svg class="legend-line" viewBox="0 0 30 6" preserveAspectRatio="none" aria-hidden="true">
+        <line x1="0" y1="3" x2="30" y2="3" stroke="#7a3fb0" stroke-width="2.2"></line>
+      </svg>
+      Comes before
+    </span>
+    <span class="legend-item">
+      <svg class="legend-line" viewBox="0 0 30 6" preserveAspectRatio="none" aria-hidden="true">
+        <line x1="0" y1="3" x2="30" y2="3" stroke="#c2185b" stroke-width="2.2"></line>
+      </svg>
+      Comes after
+    </span>
+    <span class="legend-item">
+      <svg class="legend-line" viewBox="0 0 30 6" preserveAspectRatio="none" aria-hidden="true">
+        <line x1="0" y1="3" x2="30" y2="3" stroke="#8a93a6" stroke-width="2.2" stroke-dasharray="5 3"></line>
+      </svg>
+      In parallel
+    </span>
   </div>
 </section>
 
@@ -78,12 +102,18 @@ const configJson = JSON.stringify(config).replace(/<\//g, "<\\/");
   import * as d3 from "d3";
 
   type Maturity = "established" | "emerging" | "experimental";
+  type Relation = "before" | "after" | "parallel";
+  interface Connection {
+    to: string;
+    relation: Relation;
+  }
   interface Topic {
     slug: string;
     title: string;
     maturity: Maturity;
     ml_types: string[];
     departments: string[];
+    connections: Connection[];
   }
   interface Config {
     baseUrl: string;
@@ -111,7 +141,55 @@ const configJson = JSON.stringify(config).replace(/<\//g, "<\\/");
   const INNER_H = VIEW_H - MARGIN.top - MARGIN.bottom;
 
   const svg = d3.select<SVGSVGElement, unknown>("#landscape-svg");
-  const tooltip = d3.select<HTMLDivElement, unknown>("#map-tooltip");
+
+  // Build a bidirectional adjacency map for the hover overlay.
+  // A connection declared as A -> {to: B, relation: after} means:
+  //   from A's perspective: B comes after
+  //   from B's perspective: A comes before
+  // Parallel relations are symmetric.
+  type AdjacencyEntry = { before: Set<string>; after: Set<string>; parallel: Set<string> };
+  const adjacency = new Map<string, AdjacencyEntry>();
+  for (const t of topics) {
+    adjacency.set(t.slug, { before: new Set(), after: new Set(), parallel: new Set() });
+  }
+  for (const t of topics) {
+    for (const c of t.connections) {
+      if (!adjacency.has(c.to)) continue;
+      if (c.relation === "after") {
+        adjacency.get(t.slug)!.after.add(c.to);
+        adjacency.get(c.to)!.before.add(t.slug);
+      } else if (c.relation === "before") {
+        adjacency.get(t.slug)!.before.add(c.to);
+        adjacency.get(c.to)!.after.add(t.slug);
+      } else if (c.relation === "parallel") {
+        adjacency.get(t.slug)!.parallel.add(c.to);
+        adjacency.get(c.to)!.parallel.add(t.slug);
+      }
+    }
+  }
+
+  // Dedupe: a target slug must appear in at most one of {before, after,
+  // parallel} per source. Priority: before > after > parallel. This
+  // protects against the case where both topics in a pair declared a
+  // connection with conflicting relations (e.g. one says "after", the
+  // other says "parallel").
+  for (const adj of adjacency.values()) {
+    for (const s of [...adj.parallel]) {
+      if (adj.before.has(s) || adj.after.has(s)) adj.parallel.delete(s);
+    }
+    for (const s of [...adj.after]) {
+      if (adj.before.has(s)) adj.after.delete(s);
+    }
+  }
+
+  const isTouchDevice = () =>
+    typeof window !== "undefined" &&
+    window.matchMedia &&
+    window.matchMedia("(pointer: coarse)").matches;
+
+  // Active state for touch devices: first tap shows arrows, second tap on
+  // the same topic navigates, tap elsewhere clears.
+  let activeSlug: string | null = null;
 
   function splitTitle(title: string, maxPxPerLine: number): string[] {
     const approxCharW = 6.0;
@@ -226,7 +304,7 @@ const configJson = JSON.stringify(config).replace(/<\//g, "<\\/");
     }
 
     const boxes: Box[] = [];
-    const pad = 6;
+    const pad = 10;
     // Each box is half a row tall — leaves visible empty space for future
     // topics and lets multi-row spans straddle the boundary between rows
     // cleanly.
@@ -405,9 +483,40 @@ const configJson = JSON.stringify(config).replace(/<\//g, "<\\/");
       .attr("font-style", "italic")
       .text("Required Data Maturity  →");
 
-    // Topic boxes
+    // Topic boxes + arrow overlay
     const boxes = computeBoxes(colW, rowH);
+    const boxBySlug = new Map<string, Box>(
+      boxes.map((b) => [b.topic.slug, b]),
+    );
+
+    // Arrow-head markers in three colours: before (orange), after (green),
+    // parallel (grey, dashed line uses the same marker).
+    const defs = svg.append("defs");
+    function addMarker(id: string, fill: string) {
+      defs
+        .append("marker")
+        .attr("id", id)
+        .attr("viewBox", "0 0 10 10")
+        .attr("refX", 9)
+        .attr("refY", 5)
+        .attr("markerWidth", 7)
+        .attr("markerHeight", 7)
+        .attr("orient", "auto-start-reverse")
+        .append("path")
+        .attr("d", "M 0 0 L 10 5 L 0 10 z")
+        .attr("fill", fill);
+    }
+    addMarker("arrow-before", "#7a3fb0");
+    addMarker("arrow-after", "#c2185b");
+    addMarker("arrow-parallel", "#8a93a6");
+
+    // Node layer first so that the arrow layer can be appended on top.
+    // Otherwise arrows that pass close to a topic box get hidden behind it.
     const nodeLayer = root.append("g").attr("class", "node-layer");
+    const arrowLayer = root
+      .append("g")
+      .attr("class", "arrow-layer")
+      .style("pointer-events", "none");
     const groups = nodeLayer
       .selectAll<SVGGElement, Box>("g")
       .data(boxes)
@@ -416,19 +525,262 @@ const configJson = JSON.stringify(config).replace(/<\//g, "<\\/");
       .attr("data-slug", (d) => d.topic.slug)
       .attr("transform", (d) => `translate(${d.x},${d.y})`)
       .style("cursor", "pointer")
-      .on("click", (_event, d) => {
-        window.location.href = `${config.baseUrl}/topics/${d.topic.slug}/`;
+      .on("click", function (_event, d) {
+        if (isTouchDevice()) {
+          if (activeSlug === d.topic.slug) {
+            window.location.href = `${config.baseUrl}/topics/${d.topic.slug}/`;
+          } else {
+            activeSlug = d.topic.slug;
+            showArrows(d.topic.slug);
+          }
+        } else {
+          window.location.href = `${config.baseUrl}/topics/${d.topic.slug}/`;
+        }
       })
-      .on("mouseenter", function (event, d) {
-        d3.select(this).select("rect").attr("stroke-width", 2.5);
-        d3.select(this).raise();
-        showTooltip(event, d.topic);
+      .on("mouseenter", function (_event, d) {
+        if (isTouchDevice()) return;
+        showArrows(d.topic.slug);
       })
-      .on("mousemove", (event) => moveTooltip(event))
       .on("mouseleave", function () {
-        d3.select(this).select("rect").attr("stroke-width", 1);
-        hideTooltip();
+        if (isTouchDevice()) return;
+        clearArrows();
       });
+
+    // Tap outside the map on touch devices clears the active state.
+    if (typeof document !== "undefined") {
+      document.addEventListener("click", (event) => {
+        if (!isTouchDevice()) return;
+        const mapEl = document.querySelector(".map-container");
+        if (mapEl && !mapEl.contains(event.target as Node)) {
+          activeSlug = null;
+          clearArrows();
+        }
+      });
+    }
+
+    // Helper: anchor point on the edge of a box facing the other box.
+    function edgeAnchor(box: Box, toX: number, toY: number) {
+      const cx = box.x + box.w / 2;
+      const cy = box.y + box.h / 2;
+      const dx = toX - cx;
+      const dy = toY - cy;
+      if (Math.abs(dx) < 0.001 && Math.abs(dy) < 0.001) return { x: cx, y: cy };
+      const halfW = box.w / 2;
+      const halfH = box.h / 2;
+      const slopeOut = Math.abs(dy / (dx || 0.0001));
+      const slopeBox = halfH / halfW;
+      if (slopeOut <= slopeBox) {
+        const side = dx > 0 ? 1 : -1;
+        return { x: cx + side * halfW, y: cy + side * halfW * (dy / (dx || 0.0001)) };
+      }
+      const side = dy > 0 ? 1 : -1;
+      return { x: cx + side * halfH * (dx / (dy || 0.0001)), y: cy + side * halfH };
+    }
+
+    // Returns a stable key that identifies arrows which would be drawn on
+    // the same "lane" — same vertical X for Case B, same horizontal Y for
+    // Case A. Arrows sharing a lane key get spread out so they do not all
+    // stack on the same pixel line.
+    function laneKey(src: Box, tgt: Box): string {
+      const yOMin = Math.max(src.y, tgt.y);
+      const yOMax = Math.min(src.y + src.h, tgt.y + tgt.h);
+      const xOMin = Math.max(src.x, tgt.x);
+      const xOMax = Math.min(src.x + src.w, tgt.x + tgt.w);
+      const yOverlap = yOMin < yOMax;
+      const xOverlap = xOMin < xOMax;
+      if (yOverlap && !xOverlap) {
+        return `h:${Math.round((yOMin + yOMax) / 2)}`;
+      }
+      if (xOverlap && !yOverlap) {
+        return `v:${Math.round((xOMin + xOMax) / 2)}`;
+      }
+      // Unique key so other cases never get grouped (no offset applied).
+      return `u:${src.topic.slug}->${tgt.topic.slug}`;
+    }
+
+    // Path strategy for an arrow from src to tgt, based on how the two
+    // boxes overlap geometrically. Overlap-based logic is more robust than
+    // centre proximity when boxes have different widths (multi-column
+    // topics) or sit in different sub-rows of the same ML band.
+    //
+    // `laneOffset` shifts the rendering line perpendicular to the arrow
+    // direction so that multiple arrows on the same lane are visible
+    // side-by-side rather than stacking on top of each other.
+    function arrowPath(src: Box, tgt: Box, laneOffset = 0): string {
+      const sCx = src.x + src.w / 2;
+      const sCy = src.y + src.h / 2;
+      const tCx = tgt.x + tgt.w / 2;
+      const tCy = tgt.y + tgt.h / 2;
+      const dx = tCx - sCx;
+      const dy = tCy - sCy;
+
+      // Direct box-rect overlap detection (range overlap on each axis).
+      const yOverlapMin = Math.max(src.y, tgt.y);
+      const yOverlapMax = Math.min(src.y + src.h, tgt.y + tgt.h);
+      const yOverlapExists = yOverlapMin < yOverlapMax;
+      const xOverlapMin = Math.max(src.x, tgt.x);
+      const xOverlapMax = Math.min(src.x + src.w, tgt.x + tgt.w);
+      const xOverlapExists = xOverlapMin < xOverlapMax;
+
+      // --- Case A: side-by-side (Y-overlap, no X-overlap) ---
+      // Straight horizontal line through the Y-overlap midpoint. The
+      // laneOffset shifts the line vertically, clamped to stay inside
+      // both boxes' Y range so the anchors remain on the box edges.
+      if (yOverlapExists && !xOverlapExists) {
+        const overlapHalf = (yOverlapMax - yOverlapMin) / 2;
+        const clamped = Math.max(
+          -overlapHalf + 4,
+          Math.min(overlapHalf - 4, laneOffset),
+        );
+        const lineY = (yOverlapMin + yOverlapMax) / 2 + clamped;
+        const goingRight = dx > 0;
+        const sX = goingRight ? src.x + src.w : src.x;
+        const tX = goingRight ? tgt.x : tgt.x + tgt.w;
+        return `M ${sX} ${lineY} L ${tX} ${lineY}`;
+      }
+
+      // --- Case B: vertically stacked (X-overlap, no Y-overlap) ---
+      // Straight vertical line through the X-overlap midpoint. The
+      // laneOffset shifts the line horizontally, clamped to stay inside
+      // both boxes' X range.
+      if (xOverlapExists && !yOverlapExists) {
+        const overlapHalf = (xOverlapMax - xOverlapMin) / 2;
+        const clamped = Math.max(
+          -overlapHalf + 4,
+          Math.min(overlapHalf - 4, laneOffset),
+        );
+        const lineX = (xOverlapMin + xOverlapMax) / 2 + clamped;
+        const goingDown = dy > 0;
+        const sY = goingDown ? src.y + src.h : src.y;
+        const tY = goingDown ? tgt.y : tgt.y + tgt.h;
+        return `M ${lineX} ${sY} L ${lineX} ${tY}`;
+      }
+
+      // --- Case C: both axes overlap (boxes essentially on top of each
+      // other, e.g. one very wide multi-column box sitting under a narrow
+      // one). Big external arc above or below. ---
+      if (xOverlapExists && yOverlapExists) {
+        const topMin = Math.min(src.y, tgt.y);
+        const botMax = Math.max(src.y + src.h, tgt.y + tgt.h);
+        const goUp = topMin >= INNER_H - botMax;
+        const arcHeight = 80;
+        const sAnchor = { x: sCx, y: goUp ? src.y : src.y + src.h };
+        const tAnchor = { x: tCx, y: goUp ? tgt.y : tgt.y + tgt.h };
+        const controlY = goUp ? topMin - arcHeight : botMax + arcHeight;
+        const controlX = (sCx + tCx) / 2;
+        return `M ${sAnchor.x} ${sAnchor.y} Q ${controlX} ${controlY} ${tAnchor.x} ${tAnchor.y}`;
+      }
+
+      // --- Case D: no overlap on either axis (diagonal) ---
+      // Edge-to-edge gentle Bezier.
+      const s = edgeAnchor(src, tCx, tCy);
+      const t = edgeAnchor(tgt, sCx, sCy);
+      const mx = (s.x + t.x) / 2;
+      const my = (s.y + t.y) / 2;
+      const ddx = t.x - s.x;
+      const ddy = t.y - s.y;
+      const dist = Math.sqrt(ddx * ddx + ddy * ddy);
+      if (dist < 1) return `M ${s.x} ${s.y} L ${t.x} ${t.y}`;
+      const offset = Math.min(40, dist * 0.18);
+      const cx = mx + (-ddy / dist) * offset;
+      const cy = my + (ddx / dist) * offset;
+      return `M ${s.x} ${s.y} Q ${cx} ${cy} ${t.x} ${t.y}`;
+    }
+
+    function showArrows(slug: string) {
+      const adj = adjacency.get(slug);
+      if (!adj) return;
+      const focal = boxBySlug.get(slug);
+      if (!focal) return;
+
+      // Dim every box, then un-dim focal + connected ones.
+      groups.classed("is-dimmed", true).classed("is-focal", false).classed("is-related", false);
+      const related = new Set<string>([
+        ...adj.before,
+        ...adj.after,
+        ...adj.parallel,
+      ]);
+      groups
+        .filter((d) => d.topic.slug === slug)
+        .classed("is-focal", true)
+        .classed("is-dimmed", false)
+        .raise();
+      groups
+        .filter((d) => related.has(d.topic.slug))
+        .classed("is-related", true)
+        .classed("is-dimmed", false);
+
+      arrowLayer.selectAll("*").remove();
+
+      // Build a list of arrows to render, then group by lane key so that
+      // multiple arrows sharing the same lane get spread out symmetrically.
+      type Pending = {
+        src: Box;
+        tgt: Box;
+        cls: string;
+        marker: string;
+      };
+      const pending: Pending[] = [];
+
+      adj.before.forEach((otherSlug) => {
+        const other = boxBySlug.get(otherSlug);
+        if (!other) return;
+        pending.push({
+          src: other,
+          tgt: focal,
+          cls: "conn-arrow conn-before",
+          marker: "url(#arrow-before)",
+        });
+      });
+      adj.after.forEach((otherSlug) => {
+        const other = boxBySlug.get(otherSlug);
+        if (!other) return;
+        pending.push({
+          src: focal,
+          tgt: other,
+          cls: "conn-arrow conn-after",
+          marker: "url(#arrow-after)",
+        });
+      });
+      adj.parallel.forEach((otherSlug) => {
+        const other = boxBySlug.get(otherSlug);
+        if (!other) return;
+        pending.push({
+          src: focal,
+          tgt: other,
+          cls: "conn-arrow conn-parallel",
+          marker: "url(#arrow-parallel)",
+        });
+      });
+
+      // Group by lane key so we can offset overlapping arrows.
+      const byLane = new Map<string, Pending[]>();
+      pending.forEach((p) => {
+        const key = laneKey(p.src, p.tgt);
+        const arr = byLane.get(key) ?? [];
+        arr.push(p);
+        byLane.set(key, arr);
+      });
+
+      const LANE_SPACING = 14;
+      byLane.forEach((group) => {
+        const n = group.length;
+        group.forEach((p, i) => {
+          const offset = n > 1 ? (i - (n - 1) / 2) * LANE_SPACING : 0;
+          arrowLayer
+            .append("path")
+            .attr("class", p.cls)
+            .attr("d", arrowPath(p.src, p.tgt, offset))
+            .attr("marker-end", p.marker);
+        });
+      });
+    }
+
+    function clearArrows() {
+      activeSlug = null;
+      arrowLayer.selectAll("*").remove();
+      groups.classed("is-dimmed", false).classed("is-focal", false).classed("is-related", false);
+    }
 
     groups
       .append("rect")
@@ -479,39 +831,6 @@ const configJson = JSON.stringify(config).replace(/<\//g, "<\\/");
       });
   }
 
-  function showTooltip(event: MouseEvent, t: Topic) {
-    tooltip
-      .style("left", `${event.offsetX + 16}px`)
-      .style("top", `${event.offsetY + 16}px`)
-      .html(
-        `<div class="tt-title">${escapeHtml(t.title)}</div>` +
-          `<div class="tt-meta"><span class="badge badge-${t.maturity}">${t.maturity}</span></div>` +
-          `<div class="tt-meta"><strong>ML:</strong> ${escapeHtml(t.ml_types.join(", "))}</div>` +
-          `<div class="tt-meta"><strong>Depts:</strong> ${escapeHtml(t.departments.join(", "))}</div>`,
-      )
-      .attr("hidden", null);
-  }
-  function moveTooltip(event: MouseEvent) {
-    tooltip
-      .style("left", `${event.offsetX + 16}px`)
-      .style("top", `${event.offsetY + 16}px`);
-  }
-  function hideTooltip() {
-    tooltip.attr("hidden", true);
-  }
-  function escapeHtml(s: string): string {
-    return s.replace(/[&<>"']/g, (c) => {
-      const m: Record<string, string> = {
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        '"': "&quot;",
-        "'": "&#39;",
-      };
-      return m[c];
-    });
-  }
-
   render();
 </script>
 
@@ -537,39 +856,77 @@ const configJson = JSON.stringify(config).replace(/<\//g, "<\\/");
   }
 
   .topic-box rect {
-    transition: filter 0.12s;
+    transition: filter 0.12s, opacity 0.18s;
   }
 
   .topic-box:hover rect {
     filter: brightness(1.08);
   }
 
-  .map-tooltip {
-    position: absolute;
-    pointer-events: none;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 0.55rem 0.7rem;
+  /* Connection-overlay states: when one topic is "focal", every other box
+     dims, the connected ones stay visible, the focal one gets a thicker
+     outline. */
+  #landscape-svg :global(.topic-box.is-dimmed rect) {
+    opacity: 0.22;
+  }
+
+  #landscape-svg :global(.topic-box.is-related rect) {
+    opacity: 1;
+    stroke-width: 1.5;
+  }
+
+  #landscape-svg :global(.topic-box.is-focal rect) {
+    stroke: var(--text);
+    stroke-width: 2.5;
+    filter: brightness(1.05);
+  }
+
+  #landscape-svg :global(.conn-arrow) {
+    fill: none;
+    stroke-width: 1.8;
+    opacity: 0.85;
+  }
+
+  #landscape-svg :global(.conn-arrow.conn-before) {
+    stroke: #7a3fb0;
+  }
+
+  #landscape-svg :global(.conn-arrow.conn-after) {
+    stroke: #c2185b;
+  }
+
+  #landscape-svg :global(.conn-arrow.conn-parallel) {
+    stroke: #8a93a6;
+    stroke-dasharray: 6 5;
+  }
+
+  .map-legend {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem 1.4rem;
+    margin-top: 0.6rem;
+    padding: 0.55rem 0.8rem;
     font-size: 0.82rem;
-    max-width: 320px;
-    box-shadow: 0 6px 22px rgba(0, 0, 0, 0.45);
-    color: var(--text);
-    z-index: 10;
-  }
-
-  .map-tooltip[hidden] {
-    display: none;
-  }
-
-  .tt-title {
-    font-weight: 600;
-    margin-bottom: 0.35rem;
-  }
-
-  .tt-meta {
     color: var(--text-muted);
-    font-size: 0.78rem;
-    margin-top: 0.2rem;
+  }
+
+  .legend-hint {
+    font-style: italic;
+    margin-right: 0.4rem;
+  }
+
+  .legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--text);
+  }
+
+  .legend-line {
+    width: 32px;
+    height: 6px;
+    display: inline-block;
   }
 </style>
